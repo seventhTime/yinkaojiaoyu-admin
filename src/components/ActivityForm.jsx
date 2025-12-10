@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 // @ts-ignore;
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Badge } from '@/components/ui';
 // @ts-ignore;
-import { X, Tag, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Tag, Upload, Image as ImageIcon, Plus } from 'lucide-react';
 
 // 独立的图片组件，支持云存储fileID
 function CloudImage({
@@ -223,23 +223,84 @@ export function ActivityForm({
       <div className="space-y-4">
         <h3 className="text-lg font-medium text-gray-900">标签</h3>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">活动标签</label>
-          <div className="flex gap-2">
-            <Input placeholder="输入标签后按回车添加" onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              onAddTag(e.target.value);
-              e.target.value = '';
-            }
-          }} />
+          <label className="text-sm font-medium text-gray-700">活动标签（最多4个，每个最多6个字）</label>
+          <div className="space-y-3">
+            {/* 渲染已有的标签输入框 */}
+            {formData.tags.map((tag, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  value={tag}
+                  onChange={(e) => {
+                    const newValue = e.target.value.slice(0, 6); // 限制最多6个字
+                    setFormData((prev) => {
+                      const newTags = [...prev.tags];
+                      newTags[index] = newValue;
+                      return { ...prev, tags: newTags };
+                    });
+                  }}
+                  placeholder={`标签${index + 1}`}
+                  maxLength={6}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => onRemoveTag(index)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                  title="删除标签"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+
+            {/* 新增标签按钮 - 只有在标签数量小于4时显示 */}
+            {formData.tags.length < 4 && (
+              <div className="flex items-center gap-2">
+                <Input
+                  id="new-tag-input"
+                  placeholder="输入新标签"
+                  maxLength={6}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const value = e.target.value.trim().slice(0, 6);
+                      if (value && formData.tags.length < 4) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          tags: [...prev.tags, value]
+                        }));
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('new-tag-input');
+                    const value = input.value.trim().slice(0, 6);
+                    if (value && formData.tags.length < 4) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        tags: [...prev.tags, value]
+                      }));
+                      input.value = '';
+                    }
+                  }}
+                  className="p-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+                  title="添加标签"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+
+            {/* 已添加标签数量提示 */}
+            <p className="text-xs text-gray-500">
+              已添加 {formData.tags.length}/4 个标签
+            </p>
           </div>
-          {formData.tags.length > 0 && <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag, index) => <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                  <Tag className="w-3 h-3" />
-                  {tag}
-                  <X className="w-3 h-3 cursor-pointer hover:text-red-500" onClick={() => onRemoveTag(index)} />
-                </Badge>)}
-            </div>}
         </div>
       </div>
 
