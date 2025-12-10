@@ -106,32 +106,26 @@ export default function DataExport(props) {
     }
   };
 
-  // 构建查询条件（统一按 createdAt 时间筛选）
-  const buildQuery = db => {
-    const query = {};
-    if (dateRange !== 'all') {
-      const now = new Date();
-      let startDate = new Date();
-      switch (dateRange) {
-        case 'week':
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'halfYear':
-          startDate.setMonth(now.getMonth() - 6);
-          break;
-        case 'year':
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-      }
-
-      // 使用云开发数据库命令对象进行时间范围查询
-      const _ = db.command;
-      query.createdAt = _.and([_.gte(startDate), _.lte(now)]);
+  // 计算当前选择的时间范围（统一按 createdAt 时间筛选）
+  const getDateRange = () => {
+    if (dateRange === 'all') return null;
+    const now = new Date();
+    let startDate = new Date();
+    switch (dateRange) {
+      case 'week':
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'halfYear':
+        startDate.setMonth(now.getMonth() - 6);
+        break;
+      case 'year':
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
     }
-    return query;
+    return { startDate, endDate: now };
   };
 
   // 格式化时间戳为可读格式
@@ -211,7 +205,6 @@ export default function DataExport(props) {
     try {
       const tcb = await $w.cloud.getCloudInstance();
       const db = tcb.database();
-      const query = buildQuery(db);
 
       let collectionName = '';
       if (exportType === 'activities') {
@@ -224,9 +217,22 @@ export default function DataExport(props) {
       setExportStatus('exporting');
       setExportProgress(30);
 
-      // 查询主数据
-      const result = await db.collection(collectionName).where(query).get();
+      // 查询主数据（不带时间条件，避免类型不兼容），统一在前端按 createdAt 过滤
+      const result = await db.collection(collectionName).get();
       let data = result.data || [];
+
+      // 前端按 createdAt 做时间范围过滤
+      const range = getDateRange();
+      if (range) {
+        const { startDate, endDate } = range;
+        data = data.filter(item => {
+          const value = item.createdAt;
+          if (!value) return false;
+          const d = new Date(value);
+          if (isNaN(d.getTime())) return false;
+          return d >= startDate && d <= endDate;
+        });
+      }
       setExportProgress(50);
 
       // 如果是订单导出且选择了活动关联字段，则关联查询活动数据

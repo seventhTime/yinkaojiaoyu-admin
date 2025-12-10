@@ -142,7 +142,7 @@ export default function AdminDashboard(props) {
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-sky-50 border border-sky-100 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">总用户数</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -152,7 +152,7 @@ export default function AdminDashboard(props) {
               <p className="text-xs text-muted-foreground">注册用户总数</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-emerald-50 border border-emerald-100 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">总订单数</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
@@ -162,7 +162,7 @@ export default function AdminDashboard(props) {
               <p className="text-xs text-muted-foreground">所有订单总数</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-indigo-50 border border-indigo-100 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">总活动数</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
