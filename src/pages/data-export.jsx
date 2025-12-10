@@ -106,9 +106,9 @@ export default function DataExport(props) {
     }
   };
 
-  // 构建查询条件
-  const buildQuery = () => {
-    let query = {};
+  // 构建查询条件（统一按 createdAt 时间筛选）
+  const buildQuery = db => {
+    const query = {};
     if (dateRange !== 'all') {
       const now = new Date();
       let startDate = new Date();
@@ -126,10 +126,10 @@ export default function DataExport(props) {
           startDate.setFullYear(now.getFullYear() - 1);
           break;
       }
-      query.createdAt = {
-        $gte: startDate.toISOString(),
-        $lte: now.toISOString()
-      };
+
+      // 使用云开发数据库命令对象进行时间范围查询
+      const _ = db.command;
+      query.createdAt = _.and([_.gte(startDate), _.lte(now)]);
     }
     return query;
   };
@@ -209,9 +209,9 @@ export default function DataExport(props) {
     setExportStatus('preparing');
     setExportProgress(0);
     try {
-      const query = buildQuery();
       const tcb = await $w.cloud.getCloudInstance();
       const db = tcb.database();
+      const query = buildQuery(db);
 
       let collectionName = '';
       if (exportType === 'activities') {
@@ -375,7 +375,7 @@ export default function DataExport(props) {
   // 获取活动关联字段
   const getActivityRelatedFields = () => activityRelatedFields;
 
-  return <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-blue-50">
+  return <div className="min-h-screen p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">

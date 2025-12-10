@@ -113,14 +113,14 @@ export default function AdminDashboard(props) {
     });
   };
   if (loading) {
-    return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">加载中...</p>
         </div>
       </div>;
   }
-  return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+  return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -187,7 +187,7 @@ export default function AdminDashboard(props) {
         {/* 功能卡片 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* 活动管理 */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100" onClick={() => $w.utils.navigateTo({
           pageId: 'activity-management',
           params: {}
         })}>
@@ -212,7 +212,7 @@ export default function AdminDashboard(props) {
           </Card>
 
           {/* 订单管理 */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100" onClick={() => $w.utils.navigateTo({
           pageId: 'order-management',
           params: {}
         })}>
@@ -237,7 +237,7 @@ export default function AdminDashboard(props) {
           </Card>
 
           {/* 数据导出 */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-r from-indigo-50 to-purple-50 border border-purple-100" onClick={() => $w.utils.navigateTo({
           pageId: 'data-export',
           params: {}
         })}>
