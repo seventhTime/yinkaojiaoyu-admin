@@ -124,7 +124,7 @@ export default function UserStatisticsPage(props) {
       minimumFractionDigits: 2
     })}`;
   };
-  return <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-6">
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 头部 */}
         <div className="mb-8">

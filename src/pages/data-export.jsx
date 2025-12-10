@@ -375,7 +375,7 @@ export default function DataExport(props) {
   // 获取活动关联字段
   const getActivityRelatedFields = () => activityRelatedFields;
 
-  return <div className="min-h-screen p-6 bg-gray-50">
+  return <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
@@ -387,7 +387,7 @@ export default function DataExport(props) {
 
           {/* 返回按钮 */}
           <div className="mt-4">
-            <Button variant="outline" onClick={() => $w.utils.navigateBack()} className="flex items-center space-x-2 hover:bg-gray-50 transition-colors">
+            <Button variant="outline" onClick={() => $w.utils.navigateBack()} className="flex items-center space-x-2 border-blue-200 text-blue-700 bg-white/70 hover:bg-blue-50 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span>返回管理页面</span>
             </Button>
@@ -551,7 +551,7 @@ export default function DataExport(props) {
           {/* 导出按钮 */}
           <Card>
             <CardContent className="pt-6">
-              <Button onClick={handleDirectExport} disabled={isExporting || selectedFields.length === 0} className="w-full" size="lg">
+              <Button onClick={handleDirectExport} disabled={isExporting || selectedFields.length === 0} className="w-full bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-70" size="lg">
                 {isExporting ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />导出中...</> : <><Download className="w-4 h-4 mr-2" />开始导出</>}
               </Button>
               {selectedFields.length === 0 && <p className="text-sm text-red-500 mt-2 text-center">请至少选择一个字段</p>}

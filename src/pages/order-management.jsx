@@ -183,14 +183,14 @@ export default function OrderManagement(props) {
     }
   };
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">加载中...</p>
         </div>
       </div>;
   }
-  return <div className="min-h-screen bg-gray-50 p-6">
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
@@ -199,7 +199,7 @@ export default function OrderManagement(props) {
           
           {/* 返回按钮 - 移到描述文字下方 */}
           <div className="mt-4">
-            <Button variant="outline" onClick={() => $w.utils.navigateBack()} className="flex items-center space-x-2 hover:bg-gray-50 transition-colors">
+            <Button variant="outline" onClick={() => $w.utils.navigateBack()} className="flex items-center space-x-2 border-blue-200 text-blue-700 bg-white/70 hover:bg-blue-50 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span>返回管理后台</span>
             </Button>
@@ -216,14 +216,14 @@ export default function OrderManagement(props) {
           </div>
           <div className="flex gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48 bg-white/80 border-blue-100 focus:ring-blue-200">
                 <SelectValue placeholder="筛选状态" />
               </SelectTrigger>
               <SelectContent>
                 {statusOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button onClick={exportOrders} disabled={isExporting} variant="outline" className="flex items-center space-x-2">
+            <Button onClick={exportOrders} disabled={isExporting} className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-70">
               {isExporting ? <><RefreshCw className="w-4 h-4 animate-spin" />导出中...</> : <><Download className="w-4 h-4" />导出</>}
             </Button>
           </div>

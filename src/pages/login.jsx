@@ -269,7 +269,7 @@ export default function LoginPage(props) {
               </div>
 
               {/* 登录按钮 */}
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-70" disabled={loading}>
                 {loading ? <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     登录中...
@@ -279,24 +279,12 @@ export default function LoginPage(props) {
                   </div>}
               </Button>
             </form>
-
-            {/* 提示信息 */}
-            <Alert className="mt-6">
-              <Shield className="h-4 w-4" />
-              <AlertDescription>
-                <div className="text-sm">
-                  <p className="font-medium mb-1">测试账号：</p>
-                  <p>管理员：admin / admin123</p>
-                  <p>运维：operator / op123</p>
-                </div>
-              </AlertDescription>
-            </Alert>
           </CardContent>
         </Card>
 
         {/* 底部信息 */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>© 2024 管理后台系统. 保留所有权利.</p>
+          <p> 烎考教育后台管理系统.</p>
         </div>
       </div>
     </div>;
