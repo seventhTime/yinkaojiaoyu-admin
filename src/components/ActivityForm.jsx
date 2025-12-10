@@ -224,83 +224,73 @@ export function ActivityForm({
         <h3 className="text-lg font-medium text-gray-900">标签</h3>
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">活动标签（最多4个，每个最多6个字）</label>
-          <div className="space-y-3">
-            {/* 渲染已有的标签输入框 */}
+
+          {/* 已添加的标签 - 一行展示 */}
+          <div className="flex flex-wrap items-center gap-2">
             {formData.tags.map((tag, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Input
-                  value={tag}
-                  onChange={(e) => {
-                    const newValue = e.target.value.slice(0, 6); // 限制最多6个字
-                    setFormData((prev) => {
-                      const newTags = [...prev.tags];
-                      newTags[index] = newValue;
-                      return { ...prev, tags: newTags };
-                    });
+              <div key={index} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full">
+                <span className="text-sm text-blue-700">{tag}</span>
+                <X
+                  className="w-4 h-4 text-blue-400 hover:text-red-500 cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const newTags = formData.tags.filter((_, i) => i !== index);
+                    setFormData((prev) => ({ ...prev, tags: newTags }));
                   }}
-                  placeholder={`标签${index + 1}`}
-                  maxLength={6}
-                  className="flex-1"
                 />
-                <button
-                  type="button"
-                  onClick={() => onRemoveTag(index)}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                  title="删除标签"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
             ))}
+          </div>
 
-            {/* 新增标签按钮 - 只有在标签数量小于4时显示 */}
-            {formData.tags.length < 4 && (
-              <div className="flex items-center gap-2">
-                <Input
-                  id="new-tag-input"
-                  placeholder="输入新标签"
-                  maxLength={6}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const value = e.target.value.trim().slice(0, 6);
-                      if (value && formData.tags.length < 4) {
-                        setFormData((prev) => ({
-                          ...prev,
-                          tags: [...prev.tags, value]
-                        }));
-                        e.target.value = '';
-                      }
-                    }
-                  }}
-                  className="flex-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = document.getElementById('new-tag-input');
-                    const value = input.value.trim().slice(0, 6);
+          {/* 新增标签输入 - 一行紧凑布局 */}
+          {formData.tags.length < 4 && (
+            <div className="flex items-center gap-2">
+              <Input
+                id="new-tag-input"
+                placeholder="输入标签"
+                maxLength={6}
+                className="w-32"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.trim().slice(0, 6);
                     if (value && formData.tags.length < 4) {
                       setFormData((prev) => ({
                         ...prev,
                         tags: [...prev.tags, value]
                       }));
-                      input.value = '';
+                      e.target.value = '';
                     }
-                  }}
-                  className="p-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
-                  title="添加标签"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById('new-tag-input');
+                  const value = input.value.trim().slice(0, 6);
+                  if (value && formData.tags.length < 4) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      tags: [...prev.tags, value]
+                    }));
+                    input.value = '';
+                  }
+                }}
+                className="p-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md transition-colors"
+                title="添加标签"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <span className="text-xs text-gray-400">{formData.tags.length}/4</span>
+            </div>
+          )}
 
-            {/* 已添加标签数量提示 */}
-            <p className="text-xs text-gray-500">
-              已添加 {formData.tags.length}/4 个标签
-            </p>
-          </div>
+          {/* 已满提示 */}
+          {formData.tags.length >= 4 && (
+            <p className="text-xs text-gray-500">已添加 4/4 个标签</p>
+          )}
         </div>
       </div>
 
