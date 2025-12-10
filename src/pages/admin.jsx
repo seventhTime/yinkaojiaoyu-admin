@@ -161,9 +161,9 @@ export default function AdminDashboard(props) {
           </Card>
         </div>
 
-        {/* 功能卡片 - 改为两列布局 */}
+        {/* 功能卡片 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* 第一行：活动管理 */}
+          {/* 活动管理 */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
           pageId: 'activity-management',
           params: {}
@@ -188,7 +188,7 @@ export default function AdminDashboard(props) {
             </CardContent>
           </Card>
 
-          {/* 第一行：订单管理 */}
+          {/* 订单管理 */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
           pageId: 'order-management',
           params: {}
@@ -212,11 +212,8 @@ export default function AdminDashboard(props) {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* 第二行：数据导出 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 数据导出卡片 - 占据第二行左侧 */}
+          {/* 数据导出 */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => $w.utils.navigateTo({
           pageId: 'data-export',
           params: {}
@@ -237,25 +234,6 @@ export default function AdminDashboard(props) {
                   </div>
                 </div>
                 <ArrowRight className="w-5 h-5 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 第二行右侧占位卡片 - 可以添加其他功能或留空 */}
-          <Card className="opacity-50">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="w-5 h-5 mr-2 text-gray-400" />
-                更多功能
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">更多管理功能即将推出...</p>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-400">
-                  敬请期待
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-300" />
               </div>
             </CardContent>
           </Card>
