@@ -293,17 +293,29 @@ export function ActivityForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">开始时间</label>
-            <Input type="datetime-local" value={formData.startTime} onChange={(e) => setFormData((prev) => ({
-            ...prev,
-            startTime: e.target.value }))} />
-
+            <Input
+              type="datetime-local"
+              value={formData.startTime}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                startTime: e.target.value
+              }))}
+              className="w-48 cursor-pointer"
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">结束时间</label>
-            <Input type="datetime-local" value={formData.endTime} onChange={(e) => setFormData((prev) => ({
-            ...prev,
-            endTime: e.target.value }))} />
-
+            <Input
+              type="datetime-local"
+              value={formData.endTime}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                endTime: e.target.value
+              }))}
+              className="w-48 cursor-pointer"
+              onClick={(e) => e.target.showPicker && e.target.showPicker()}
+            />
           </div>
         </div>
         <div className="space-y-2">
