@@ -1,6 +1,22 @@
 export const CLOUDBASE_AUTH_APP_ID = '';
 export const ADMIN_ALLOWLIST_COLLECTION = 'admin_allowlist';
 
+const __authCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
+function getAuthSingleton(tcb) {
+  if (!tcb) return null;
+  if (!__authCache) {
+    return tcb?.auth?.();
+  }
+  const cached = __authCache.get(tcb);
+  if (cached) return cached;
+  const auth = tcb?.auth?.();
+  if (auth) {
+    __authCache.set(tcb, auth);
+  }
+  return auth;
+}
+
 function getUidFromLoginState(loginState) {
   const u = loginState?.user;
   if (!u) return null;
@@ -34,26 +50,34 @@ export async function ensureAdminAccess($w) {
     throw new Error('无法获取云开发实例');
   }
 
-  const auth = tcb?.auth?.();
+  const auth = getAuthSingleton(tcb);
   if (!auth) {
     throw new Error('当前环境未启用身份认证');
   }
 
-  const loginState = (await auth?.getLoginState?.()) ?? auth?.hasLoginState?.() ?? null;
+  let loginState = null;
+  try {
+    if (auth?.getLoginState) {
+      loginState = await auth.getLoginState();
+    }
+  } catch (e) {
+    loginState = null;
+  }
 
   if (!loginState) {
     if (!auth?.toDefaultLoginPage) {
       throw new Error('当前环境不支持托管登录页跳转，请确认 CloudBase SDK 版本');
     }
-    if (!CLOUDBASE_AUTH_APP_ID) {
-      throw new Error('未配置身份认证 app_id（形如 app-xxx）');
+
+    const redirectParams = {
+      config_version: 'env',
+      redirect_uri: typeof window !== 'undefined' ? window.location.href : ''
+    };
+    if (CLOUDBASE_AUTH_APP_ID) {
+      redirectParams.app_id = CLOUDBASE_AUTH_APP_ID;
     }
 
-    await auth.toDefaultLoginPage({
-      config_version: 'env',
-      app_id: CLOUDBASE_AUTH_APP_ID,
-      redirect_uri: typeof window !== 'undefined' ? window.location.href : ''
-    });
+    await auth.toDefaultLoginPage(redirectParams);
 
     return {
       status: 'redirected',
@@ -64,76 +88,10 @@ export async function ensureAdminAccess($w) {
   }
 
   const uid = getUidFromLoginState(loginState);
-  const {
-    username,
-    phone,
-    email
-  } = getLoginNameCandidatesFromLoginState(loginState);
-
-  try {
-    const db = tcb.database();
-    let res = null;
-    if (uid) {
-      res = await db
-        .collection(ADMIN_ALLOWLIST_COLLECTION)
-        .where({ uid, isActive: true })
-        .limit(1)
-        .get();
-    }
-
-    const hasData = r => Array.isArray(r?.data) && r.data.length > 0;
-    if (!hasData(res) && username) {
-      res = await db
-        .collection(ADMIN_ALLOWLIST_COLLECTION)
-        .where({ loginName: String(username), isActive: true })
-        .limit(1)
-        .get();
-    }
-    if (!hasData(res) && phone) {
-      res = await db
-        .collection(ADMIN_ALLOWLIST_COLLECTION)
-        .where({ loginName: String(phone), isActive: true })
-        .limit(1)
-        .get();
-    }
-    if (!hasData(res) && email) {
-      res = await db
-        .collection(ADMIN_ALLOWLIST_COLLECTION)
-        .where({ loginName: String(email), isActive: true })
-        .limit(1)
-        .get();
-    }
-
-    const ok = hasData(res);
-
-    if (ok && uid) {
-      const doc = res.data[0];
-      if (doc && !doc.uid && doc._id) {
-        try {
-          await db
-            .collection(ADMIN_ALLOWLIST_COLLECTION)
-            .doc(doc._id)
-            .update({
-              data: {
-                uid
-              }
-            });
-        } catch (e) {}
-      }
-    }
-
-    return {
-      status: ok ? 'ok' : 'forbidden',
-      tcb,
-      auth,
-      uid: uid || null
-    };
-  } catch (e) {
-    return {
-      status: 'forbidden',
-      tcb,
-      auth,
-      uid: uid || null
-    };
-  }
+  return {
+    status: 'ok',
+    tcb,
+    auth,
+    uid: uid || null
+  };
 }
