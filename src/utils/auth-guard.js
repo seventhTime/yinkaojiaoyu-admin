@@ -122,9 +122,28 @@ export async function ensureAdminAccess($w) {
       throw new Error('当前环境不支持托管登录页跳转，请确认 CloudBase SDK 版本');
     }
 
+    let redirectUri = '';
+    if (typeof window !== 'undefined') {
+      try {
+        const u = new URL(window.location.href);
+        const marker = '/preview/';
+        const idx = u.pathname.indexOf(marker);
+        if (idx >= 0) {
+          u.pathname = u.pathname.slice(0, idx + marker.length) + 'admin';
+          u.search = '';
+          u.hash = '';
+          redirectUri = u.toString();
+        } else {
+          redirectUri = window.location.href;
+        }
+      } catch (e) {
+        redirectUri = window.location.href;
+      }
+    }
+
     const redirectParams = {
       config_version: 'env',
-      redirect_uri: typeof window !== 'undefined' ? window.location.href : ''
+      redirect_uri: redirectUri
     };
     if (CLOUDBASE_AUTH_APP_ID) {
       redirectParams.app_id = CLOUDBASE_AUTH_APP_ID;
