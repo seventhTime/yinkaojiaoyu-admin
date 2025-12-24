@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
 // @ts-ignore;
 import { Users, FileText, Database, TrendingUp, Calendar, DollarSign, Activity, ArrowRight, LogOut, User, Settings, BarChart3, Package, Download } from 'lucide-react';
+import { ensureAdminAccess } from '../utils/auth-guard';
 
 export default function AdminDashboard(props) {
   const {
@@ -18,11 +19,41 @@ export default function AdminDashboard(props) {
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [currentUid, setCurrentUid] = useState('');
 
   // 获取统计数据
   useEffect(() => {
-    fetchStats();
-    fetchRecentData();
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await ensureAdminAccess($w);
+        if (cancelled) return;
+        if (res.status === 'redirected') {
+          return;
+        }
+        setCurrentUid(res.uid || '');
+        if (res.status !== 'ok') {
+          setForbidden(true);
+          setAuthChecked(true);
+          setLoading(false);
+          return;
+        }
+        setForbidden(false);
+        setAuthChecked(true);
+        fetchStats();
+        fetchRecentData();
+      } catch (e) {
+        if (cancelled) return;
+        setForbidden(true);
+        setAuthChecked(true);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const fetchStats = async () => {
     try {
@@ -116,6 +147,18 @@ export default function AdminDashboard(props) {
       params: {}
     });
   };
+  if (authChecked && forbidden) {
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white/80 rounded-lg border border-blue-100 shadow p-6">
+          <div className="text-lg font-semibold text-gray-900">无权限访问后台</div>
+          <div className="text-sm text-gray-600 mt-2">请联系管理员将你的账号加入白名单后再访问。</div>
+          {currentUid ? <div className="mt-3 text-xs text-gray-500 break-all">UID: {currentUid}</div> : null}
+          <div className="mt-6 flex justify-end">
+            <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50">退出登录</Button>
+          </div>
+        </div>
+      </div>;
+  }
   if (loading) {
     return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">

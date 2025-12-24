@@ -357,6 +357,13 @@ export function ActivityForm({
           address: e.target.value }))}
         placeholder="请输入活动地址" />
         </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">联系电话</label>
+          <Input value={formData.callNumber || ''} onChange={(e) => setFormData((prev) => ({
+          ...prev,
+          callNumber: e.target.value }))}
+        placeholder="请输入联系电话（手机号/座机）" />
+        </div>
       </div>
 
       {/* 标签 */}

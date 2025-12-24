@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Input, Badge, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui';
 // @ts-ignore;
 import { Search, Filter, ArrowLeft, Eye, Edit, Trash2, Calendar, DollarSign, User, Phone, Mail, MapPin, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Download, FileText } from 'lucide-react';
+import { ensureAdminAccess } from '../utils/auth-guard';
 
 export default function OrderManagement(props) {
   const {
     $w
   } = props;
+
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,9 @@ export default function OrderManagement(props) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [isExporting, setIsExporting] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [currentUid, setCurrentUid] = useState('');
 
   // 订单状态选项
   const statusOptions = [{
@@ -35,9 +40,35 @@ export default function OrderManagement(props) {
     label: '已取消'
   }];
 
-  // 获取订单数据
   useEffect(() => {
-    fetchOrders();
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await ensureAdminAccess($w);
+        if (cancelled) return;
+        if (res.status === 'redirected') {
+          return;
+        }
+        setCurrentUid(res.uid || '');
+        if (res.status !== 'ok') {
+          setForbidden(true);
+          setAuthChecked(true);
+          setLoading(false);
+          return;
+        }
+        setForbidden(false);
+        setAuthChecked(true);
+        fetchOrders();
+      } catch (e) {
+        if (cancelled) return;
+        setForbidden(true);
+        setAuthChecked(true);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 获取订单数据
@@ -182,6 +213,36 @@ export default function OrderManagement(props) {
       setIsExporting(false);
     }
   };
+
+  const handleLogout = async () => {
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const auth = tcb?.auth?.();
+      if (auth?.signOut) {
+        await auth.signOut();
+      }
+    } catch (error) {
+      console.warn('退出登录失败:', error);
+    }
+    $w.utils.navigateTo({
+      pageId: 'admin',
+      params: {}
+    });
+  };
+
+  if (authChecked && forbidden) {
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white/80 rounded-lg border border-blue-100 shadow p-6">
+          <div className="text-lg font-semibold text-gray-900">无权限访问后台</div>
+          <div className="text-sm text-gray-600 mt-2">请联系管理员将你的账号加入白名单后再访问。</div>
+          {currentUid ? <div className="mt-3 text-xs text-gray-500 break-all">UID: {currentUid}</div> : null}
+          <div className="mt-6 flex justify-end">
+            <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50">退出登录</Button>
+          </div>
+        </div>
+      </div>;
+  }
+
   if (loading) {
     return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -190,6 +251,7 @@ export default function OrderManagement(props) {
         </div>
       </div>;
   }
+
   return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}

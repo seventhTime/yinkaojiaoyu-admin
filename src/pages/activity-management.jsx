@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, useToast } from '@/components/ui';
 // @ts-ignore;
 import { Activity } from 'lucide-react';
+import { ensureAdminAccess } from '../utils/auth-guard';
 
 // @ts-ignore;
 import { ActivityList } from '@/components/ActivityList';
 // @ts-ignore;
 import { ActivityFilters } from '@/components/ActivityFilters';
+
 // @ts-ignore;
 import { ActivityDialogs } from '@/components/ActivityDialogs';
 export default function ActivityManagementPage(props) {
@@ -20,11 +22,15 @@ export default function ActivityManagementPage(props) {
   } = useToast();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [currentUid, setCurrentUid] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -32,6 +38,7 @@ export default function ActivityManagementPage(props) {
     desc: '',
     price: '',
     address: '',
+    callNumber: '',
     startTime: '',
     endTime: '',
     tags: [],
@@ -112,6 +119,7 @@ export default function ActivityManagementPage(props) {
         desc: 1,
         price: 1,
         address: 1,
+        callNumber: 1,
         startTime: 1,
         endTime: 1,
         tags: 1,
@@ -203,10 +211,41 @@ export default function ActivityManagementPage(props) {
     }
   };
 
-  // 页面加载时获取活动数据
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await ensureAdminAccess($w);
+        if (cancelled) return;
+        if (res.status === 'redirected') {
+          return;
+        }
+        setCurrentUid(res.uid || '');
+        if (res.status !== 'ok') {
+          setForbidden(true);
+          setAuthChecked(true);
+          setLoading(false);
+          return;
+        }
+        setForbidden(false);
+        setAuthChecked(true);
+      } catch (e) {
+        if (cancelled) return;
+        setForbidden(true);
+        setAuthChecked(true);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 页面加载/筛选变更时获取活动数据
+  useEffect(() => {
+    if (!authChecked || forbidden) return;
     loadActivities(1, true);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, authChecked, forbidden]);
 
   // 检查是否已有发布的活动 - 使用isActive字段
   const checkHasPublishedActivity = () => {
@@ -358,6 +397,7 @@ export default function ActivityManagementPage(props) {
       }
     }
     try {
+      const callNumberValue = (formData.callNumber || '').trim();
       // 准备活动数据，确保所有字段都符合数据集结构
       const activityData = {
         title: formData.title.trim(),
@@ -380,6 +420,11 @@ export default function ActivityManagementPage(props) {
         // 使用时间戳
         updatedAt: getCurrentTimestamp() // 使用时间戳
       };
+
+      if (callNumberValue) {
+        activityData.callNumber = callNumberValue;
+      }
+
       await $w.cloud.callDataSource({
         dataSourceName: 'activities',
         methodName: 'wedaCreateV2',
@@ -466,6 +511,7 @@ export default function ActivityManagementPage(props) {
       }
     }
     try {
+      const callNumberValue = (formData.callNumber || '').trim();
       // 准备更新数据，确保所有字段都符合数据集结构
       const activityData = {
         title: formData.title.trim(),
@@ -486,6 +532,11 @@ export default function ActivityManagementPage(props) {
         maxParticipants: parseInt(formData.maxParticipants) || 0,
         updatedAt: getCurrentTimestamp() // 使用时间戳
       };
+
+      if (callNumberValue) {
+        activityData.callNumber = callNumberValue;
+      }
+
       await $w.cloud.callDataSource({
         dataSourceName: 'activities',
         methodName: 'wedaUpdateV2',
@@ -605,6 +656,7 @@ export default function ActivityManagementPage(props) {
       desc: '',
       price: '',
       address: '',
+      callNumber: '',
       startTime: '',
       endTime: '',
       tags: [],
@@ -631,6 +683,7 @@ export default function ActivityManagementPage(props) {
           desc: fullActivity.desc || '',
           price: fullActivity.price ? (fullActivity.price / 100).toString() : '', // 分转元显示
           address: fullActivity.address || '',
+          callNumber: fullActivity.callNumber || '',
           startTime: fullActivity.startTime || '',
           endTime: fullActivity.endTime || '',
           tags: fullActivity.tags || [],
@@ -747,6 +800,33 @@ export default function ActivityManagementPage(props) {
       params: {}
     });
   };
+  const handleLogout = async () => {
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const auth = tcb?.auth?.();
+      if (auth?.signOut) {
+        await auth.signOut();
+      }
+    } catch (error) {
+      console.warn('退出登录失败:', error);
+    }
+    $w.utils.navigateTo({
+      pageId: 'admin',
+      params: {}
+    });
+  };
+  if (authChecked && forbidden) {
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white/80 rounded-lg border border-blue-100 shadow p-6">
+          <div className="text-lg font-semibold text-gray-900">无权限访问后台</div>
+          <div className="text-sm text-gray-600 mt-2">请联系管理员将你的账号加入白名单后再访问。</div>
+          {currentUid ? <div className="mt-3 text-xs text-gray-500 break-all">UID: {currentUid}</div> : null}
+          <div className="mt-6 flex justify-end">
+            <button type="button" onClick={handleLogout} className="px-4 py-2 rounded-md border border-red-200 text-red-600 hover:bg-red-50">退出登录</button>
+          </div>
+        </div>
+      </div>;
+  }
   return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}

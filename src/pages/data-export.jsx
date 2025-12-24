@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, Label } from '@/components/ui';
 // @ts-ignore;
 import { Download, FileText, Users, Calendar, Database, CheckCircle, AlertCircle, Clock, RefreshCw, ArrowLeft } from 'lucide-react';
+import { ensureAdminAccess } from '../utils/auth-guard';
 
 export default function DataExport(props) {
   const {
@@ -17,6 +18,9 @@ export default function DataExport(props) {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStatus, setExportStatus] = useState('idle');
   const [exportResult, setExportResult] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  const [currentUid, setCurrentUid] = useState('');
 
   // 订单字段（不包含活动相关字段）
   const orderOnlyFields = [
@@ -87,6 +91,34 @@ export default function DataExport(props) {
     const defaultFields = fieldOptions[exportType].filter(field => field.checked).map(field => field.id);
     setSelectedFields(defaultFields);
   }, [exportType]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await ensureAdminAccess($w);
+        if (cancelled) return;
+        if (res.status === 'redirected') {
+          return;
+        }
+        setCurrentUid(res.uid || '');
+        if (res.status !== 'ok') {
+          setForbidden(true);
+          setAuthChecked(true);
+          return;
+        }
+        setForbidden(false);
+        setAuthChecked(true);
+      } catch (e) {
+        if (cancelled) return;
+        setForbidden(true);
+        setAuthChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 处理字段选择
   const handleFieldChange = (fieldId, checked) => {
@@ -195,6 +227,9 @@ export default function DataExport(props) {
 
   // 直接导出数据功能
   const handleDirectExport = async () => {
+    if (!authChecked || forbidden) {
+      return;
+    }
     if (selectedFields.length === 0) {
       alert('请至少选择一个字段');
       return;
@@ -229,7 +264,9 @@ export default function DataExport(props) {
           const value = item.createdAt;
           if (!value) return false;
           const d = new Date(value);
-          if (isNaN(d.getTime())) return false;
+          if (isNaN(d.getTime())) {
+            return false;
+          }
           return d >= startDate && d <= endDate;
         });
       }
@@ -355,15 +392,24 @@ export default function DataExport(props) {
     const rows = data.map(item => {
       return fields.map(field => {
         let value = item[field];
-        if (value === null || value === undefined) {
-          return '';
+
+        // 时间字段格式化
+        if (isTimeField(field)) {
+          value = formatDateTime(value);
         }
-        if (Array.isArray(value)) {
-          value = value.join(';');
+        // 订单状态格式化
+        else if (field === 'status' && exportType === 'orders') {
+          value = formatOrderStatus(value);
         }
-        if (typeof value === 'object' && value !== null) {
-          value = JSON.stringify(value);
+        // 活动发布状态格式化
+        else if (field === 'isActive' || field === 'activity_isActive') {
+          value = formatActiveStatus(value);
         }
+        // 金额格式化（分转元）
+        else if (field === 'amount' || field === 'price' || field === 'activity_price') {
+          value = formatAmount(value);
+        }
+
         value = String(value);
         if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
           return `"${value.replace(/"/g, '""')}"`;
@@ -380,6 +426,35 @@ export default function DataExport(props) {
 
   // 获取活动关联字段
   const getActivityRelatedFields = () => activityRelatedFields;
+
+  const handleLogout = async () => {
+    try {
+      const tcb = await $w.cloud.getCloudInstance();
+      const auth = tcb?.auth?.();
+      if (auth?.signOut) {
+        await auth.signOut();
+      }
+    } catch (error) {
+      console.warn('退出登录失败:', error);
+    }
+    $w.utils.navigateTo({
+      pageId: 'admin',
+      params: {}
+    });
+  };
+
+  if (authChecked && forbidden) {
+    return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-white/80 rounded-lg border border-blue-100 shadow p-6">
+          <div className="text-lg font-semibold text-gray-900">无权限访问后台</div>
+          <div className="text-sm text-gray-600 mt-2">请联系管理员将你的账号加入白名单后再访问。</div>
+          {currentUid ? <div className="mt-3 text-xs text-gray-500 break-all">UID: {currentUid}</div> : null}
+          <div className="mt-6 flex justify-end">
+            <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 hover:bg-red-50">退出登录</Button>
+          </div>
+        </div>
+      </div>;
+  }
 
   return <div className="min-h-screen p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-7xl mx-auto">

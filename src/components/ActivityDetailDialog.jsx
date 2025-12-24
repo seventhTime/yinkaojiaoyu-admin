@@ -43,6 +43,10 @@ export function ActivityDetailDialog({
                 </div>
               </div>
               <div>
+                <label className="text-sm font-medium text-gray-500">联系电话</label>
+                <div className="mt-1 text-gray-900">{activity.callNumber || '-'}</div>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-gray-500">开始时间</label>
                 <div className="mt-1 text-gray-900">{formatDateTime(activity.startTime)}</div>
               </div>

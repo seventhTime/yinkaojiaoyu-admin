@@ -92,19 +92,15 @@ export function ActivityDialogs({
             <div>
               <h3 className="text-lg font-semibold mb-3">基本信息</h3>
               <div className="grid grid-cols-2 gap-4">
-                
-
-
-
-
-
-
-
                 <div>
                   <label className="text-sm font-medium text-gray-500">价格</label>
                   <div className="mt-1 font-medium text-gray-900">
                     {formatPrice(selectedActivity?.price)}
                   </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">联系电话</label>
+                  <div className="mt-1 text-gray-900">{selectedActivity?.callNumber || '-'}</div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">开始时间</label>
