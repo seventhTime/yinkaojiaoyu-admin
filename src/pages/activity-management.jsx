@@ -813,7 +813,10 @@ export default function ActivityManagementPage(props) {
     }
     $w.utils.navigateTo({
       pageId: 'admin',
-      params: {}
+      params: {
+        forceLogin: '1',
+        _t: String(Date.now())
+      }
     });
   };
   if (authChecked && forbidden) {

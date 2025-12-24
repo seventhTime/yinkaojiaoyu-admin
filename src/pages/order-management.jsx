@@ -226,7 +226,10 @@ export default function OrderManagement(props) {
     }
     $w.utils.navigateTo({
       pageId: 'admin',
-      params: {}
+      params: {
+        forceLogin: '1',
+        _t: String(Date.now())
+      }
     });
   };
 

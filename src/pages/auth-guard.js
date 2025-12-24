@@ -80,7 +80,8 @@ export async function ensureAdminAccess($w) {
     throw new Error('当前环境未启用身份认证');
   }
 
-  if (shouldForceLogin()) {
+  const forceLogin = shouldForceLogin();
+  if (forceLogin) {
     try {
       if (auth?.signOut) {
         await auth.signOut();
@@ -94,6 +95,10 @@ export async function ensureAdminAccess($w) {
       loginState = await auth.getLoginState();
     }
   } catch (e) {
+    loginState = null;
+  }
+
+  if (forceLogin) {
     loginState = null;
   }
 
