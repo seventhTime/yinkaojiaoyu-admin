@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, Label } from '@/components/ui';
 // @ts-ignore;
-import { Download, FileText, Users, Calendar, Database, CheckCircle, AlertCircle, Clock, RefreshCw, ArrowLeft } from 'lucide-react';
-import { ensureAdminAccess } from './auth-guard';
+import { Download, FileText, Users, Activity, Database, ArrowLeft } from 'lucide-react';
+import { ensureAdminAccess, getAuthSingleton } from './auth-guard';
 
 export default function DataExport(props) {
   const {
@@ -429,14 +429,27 @@ export default function DataExport(props) {
 
   const handleLogout = async () => {
     try {
+      try {
+        if (typeof window !== 'undefined' && window?.sessionStorage?.setItem) {
+          window.sessionStorage.setItem('__yinkaojiaoyu_admin_force_login__', '1');
+        }
+      } catch (e) {}
       const tcb = await $w.cloud.getCloudInstance();
-      const auth = tcb?.auth?.();
+      const auth = getAuthSingleton(tcb);
       if (auth?.signOut) {
         await auth.signOut();
       }
     } catch (error) {
       console.warn('退出登录失败:', error);
     }
+
+    try {
+      const res = await ensureAdminAccess($w);
+      if (res?.status === 'redirected') {
+        return;
+      }
+    } catch (e) {}
+
     $w.utils.navigateTo({
       pageId: 'admin',
       params: {

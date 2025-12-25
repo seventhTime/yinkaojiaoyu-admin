@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, useToast } from '@/components/ui';
 // @ts-ignore;
 import { Activity } from 'lucide-react';
-import { ensureAdminAccess } from './auth-guard';
+import { ensureAdminAccess, getAuthSingleton } from './auth-guard';
 
 // @ts-ignore;
 import { ActivityList } from '@/components/ActivityList';
@@ -803,14 +803,27 @@ export default function ActivityManagementPage(props) {
   };
   const handleLogout = async () => {
     try {
+      try {
+        if (typeof window !== 'undefined' && window?.sessionStorage?.setItem) {
+          window.sessionStorage.setItem('__yinkaojiaoyu_admin_force_login__', '1');
+        }
+      } catch (e) {}
       const tcb = await $w.cloud.getCloudInstance();
-      const auth = tcb?.auth?.();
+      const auth = getAuthSingleton(tcb);
       if (auth?.signOut) {
         await auth.signOut();
       }
     } catch (error) {
       console.warn('退出登录失败:', error);
     }
+
+    try {
+      const res = await ensureAdminAccess($w);
+      if (res?.status === 'redirected') {
+        return;
+      }
+    } catch (e) {}
+
     $w.utils.navigateTo({
       pageId: 'admin',
       params: {

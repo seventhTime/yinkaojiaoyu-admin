@@ -2,8 +2,9 @@ export const CLOUDBASE_AUTH_APP_ID = '';
 export const ADMIN_ALLOWLIST_COLLECTION = 'admin_allowlist';
 
 const __AUTH_GLOBAL_KEY = '__yinkaojiaoyu_admin_cloudbase_auth__';
+const __FORCE_LOGIN_STORAGE_KEY = '__yinkaojiaoyu_admin_force_login__';
 
-function getAuthSingleton(tcb) {
+export function getAuthSingleton(tcb) {
   if (!tcb) return null;
   const g = typeof globalThis !== 'undefined' ? globalThis : null;
   if (g && g[__AUTH_GLOBAL_KEY]) {
@@ -20,7 +21,16 @@ function shouldForceLogin() {
   try {
     if (typeof window === 'undefined') return false;
     const sp = new URLSearchParams(window.location.search || '');
-    return sp.get('forceLogin') === '1';
+    if (sp.get('forceLogin') === '1') {
+      return true;
+    }
+    if (window?.sessionStorage?.getItem?.(__FORCE_LOGIN_STORAGE_KEY) === '1') {
+      try {
+        window.sessionStorage.removeItem(__FORCE_LOGIN_STORAGE_KEY);
+      } catch (e) {}
+      return true;
+    }
+    return false;
   } catch (e) {
     return false;
   }
@@ -139,7 +149,15 @@ export async function ensureAdminAccess($w) {
           u.hash = '';
           redirectUri = u.toString();
         } else {
-          redirectUri = window.location.href;
+          const parts = (u.pathname || '').split('/').filter(Boolean);
+          if (parts[0] && parts[0].startsWith('app-')) {
+            u.pathname = `/${parts[0]}/admin`;
+            u.search = '';
+            u.hash = '';
+            redirectUri = u.toString();
+          } else {
+            redirectUri = window.location.href;
+          }
         }
       } catch (e) {
         redirectUri = window.location.href;
