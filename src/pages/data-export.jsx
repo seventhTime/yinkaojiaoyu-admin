@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore;
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, Label } from '@/components/ui';
 // @ts-ignore;
-import { Download, FileText, Users, Activity, Database, ArrowLeft, Calendar, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Download, FileText, Users, Activity, Database, ArrowLeft, Calendar, CheckCircle, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import { ensureAdminAccess, getAuthSingleton } from './auth-guard';
 
 export default function DataExport(props) {
@@ -206,7 +206,16 @@ export default function DataExport(props) {
   // 金额格式化（分转元）
   const formatAmount = amount => {
     if (amount === null || amount === undefined) return '';
-    return (amount / 100).toFixed(2);
+    const num = Number(amount);
+    if (!Number.isFinite(num)) return String(amount);
+    return (num / 100).toFixed(2);
+  };
+
+  const formatPriceYuan = price => {
+    if (price === null || price === undefined) return '';
+    const num = Number(price);
+    if (!Number.isFinite(num)) return String(price);
+    return num.toFixed(2);
   };
 
   // 检查是否选择了活动关联字段
@@ -319,8 +328,11 @@ export default function DataExport(props) {
             value = formatActiveStatus(value);
           }
           // 金额格式化（分转元）
-          else if (field === 'amount' || field === 'price' || field === 'activity_price') {
+          else if (field === 'amount') {
             value = formatAmount(value);
+          }
+          else if (field === 'price' || field === 'activity_price') {
+            value = formatPriceYuan(value);
           }
 
           filteredItem[field] = value;
@@ -406,8 +418,11 @@ export default function DataExport(props) {
           value = formatActiveStatus(value);
         }
         // 金额格式化（分转元）
-        else if (field === 'amount' || field === 'price' || field === 'activity_price') {
+        else if (field === 'amount') {
           value = formatAmount(value);
+        }
+        else if (field === 'price' || field === 'activity_price') {
+          value = formatPriceYuan(value);
         }
 
         value = String(value);
