@@ -29,7 +29,7 @@ export default function DataExport(props) {
     { id: 'userName', label: '用户姓名', checked: true },
     { id: 'userPhone', label: '用户手机', checked: true },
     { id: 'activityId', label: '活动ID', checked: false },
-    { id: 'amount', label: '总金额', checked: true },
+    { id: 'amount', label: '总金额（元）', checked: true },
     { id: 'status', label: '订单状态', checked: true },
     { id: 'payTime', label: '支付时间', checked: false },
     { id: 'createdAt', label: '订单创建时间', checked: true },
@@ -41,7 +41,7 @@ export default function DataExport(props) {
     { id: 'activity_title', label: '活动标题', checked: true, sourceField: 'title' },
     { id: 'activity_subtitle', label: '活动副标题', checked: false, sourceField: 'subtitle' },
     { id: 'activity_desc', label: '活动描述', checked: false, sourceField: 'desc' },
-    { id: 'activity_price', label: '活动价格', checked: false, sourceField: 'price' },
+    { id: 'activity_price', label: '活动价格（元）', checked: false, sourceField: 'price' },
     { id: 'activity_startTime', label: '活动开始时间', checked: false, sourceField: 'startTime' },
     { id: 'activity_endTime', label: '活动结束时间', checked: false, sourceField: 'endTime' },
     { id: 'activity_address', label: '活动地址', checked: false, sourceField: 'address' },
@@ -56,7 +56,7 @@ export default function DataExport(props) {
       { id: 'title', label: '活动标题', checked: true },
       { id: 'subtitle', label: '活动副标题', checked: true },
       { id: 'desc', label: '活动描述', checked: false },
-      { id: 'price', label: '价格', checked: true },
+      { id: 'price', label: '价格（元）', checked: true },
       { id: 'startTime', label: '开始时间', checked: true },
       { id: 'endTime', label: '结束时间', checked: true },
       { id: 'address', label: '活动地址', checked: true },
@@ -211,13 +211,6 @@ export default function DataExport(props) {
     return (num / 100).toFixed(2);
   };
 
-  const formatPriceYuan = price => {
-    if (price === null || price === undefined) return '';
-    const num = Number(price);
-    if (!Number.isFinite(num)) return String(price);
-    return num.toFixed(2);
-  };
-
   // 检查是否选择了活动关联字段
   const hasActivityFields = () => {
     return selectedFields.some(fieldId => fieldId.startsWith('activity_'));
@@ -309,33 +302,11 @@ export default function DataExport(props) {
       }
       setExportProgress(70);
 
-      // 过滤选中的字段并进行格式化
+      // 只筛选字段，具体格式化在 generateCSV 中统一处理，避免双重格式化导致金额再次 /100
       const filteredData = data.map(item => {
         const filteredItem = {};
         selectedFields.forEach(field => {
-          let value = item[field];
-
-          // 时间字段格式化
-          if (isTimeField(field)) {
-            value = formatDateTime(value);
-          }
-          // 订单状态格式化
-          else if (field === 'status' && exportType === 'orders') {
-            value = formatOrderStatus(value);
-          }
-          // 活动发布状态格式化
-          else if (field === 'isActive' || field === 'activity_isActive') {
-            value = formatActiveStatus(value);
-          }
-          // 金额格式化（分转元）
-          else if (field === 'amount') {
-            value = formatAmount(value);
-          }
-          else if (field === 'price' || field === 'activity_price') {
-            value = formatPriceYuan(value);
-          }
-
-          filteredItem[field] = value;
+          filteredItem[field] = item[field];
         });
         return filteredItem;
       });
@@ -350,14 +321,14 @@ export default function DataExport(props) {
         fileName = `${exportType}_export_${new Date().toISOString().split('T')[0]}.csv`;
         mimeType = 'text/csv;charset=utf-8;';
       } else if (format === 'excel') {
-        fileContent = generateCSV(filteredData, selectedFields);
-        fileName = `${exportType}_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;';
+        fileContent = generateExcelHtml(filteredData, selectedFields);
+        fileName = `${exportType}_export_${new Date().toISOString().split('T')[0]}.xls`;
+        mimeType = 'application/vnd.ms-excel;charset=utf-8;';
       }
       setExportProgress(95);
 
       // 创建下载链接
-      const blob = new Blob(['\ufeff' + fileContent], { type: mimeType });
+      const blob = new Blob([format === 'csv' ? '\ufeff' + fileContent : fileContent], { type: mimeType });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
@@ -418,11 +389,8 @@ export default function DataExport(props) {
           value = formatActiveStatus(value);
         }
         // 金额格式化（分转元）
-        else if (field === 'amount') {
+        else if (field === 'amount' || field === 'price' || field === 'activity_price') {
           value = formatAmount(value);
-        }
-        else if (field === 'price' || field === 'activity_price') {
-          value = formatPriceYuan(value);
         }
 
         value = String(value);
@@ -434,6 +402,57 @@ export default function DataExport(props) {
     });
 
     return [headers, ...rows].join('\n');
+  };
+
+  const escapeHtml = value => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const generateExcelHtml = (data, fields) => {
+    const fieldDefs = fieldOptions[exportType].filter(field => fields.includes(field.id));
+    const headers = fieldDefs.map(f => `<th style="border:1px solid #ddd;padding:6px;background:#f5f5f5;">${escapeHtml(f.label)}</th>`).join('');
+
+    const rows = (data || []).map(item => {
+      const tds = fields.map(field => {
+        let value = item[field];
+
+        // 时间字段格式化
+        if (isTimeField(field)) {
+          value = formatDateTime(value);
+        }
+        // 订单状态格式化
+        else if (field === 'status' && exportType === 'orders') {
+          value = formatOrderStatus(value);
+        }
+        // 活动发布状态格式化
+        else if (field === 'isActive' || field === 'activity_isActive') {
+          value = formatActiveStatus(value);
+        }
+        // 金额格式化（分转元）
+        else if (field === 'amount' || field === 'price' || field === 'activity_price') {
+          const formatted = formatAmount(value);
+          const num = Number(formatted);
+          if (Number.isFinite(num)) {
+            return `<td style="border:1px solid #ddd;padding:6px;mso-number-format:'0.00';">${num.toFixed(2)}</td>`;
+          }
+          value = formatted;
+        }
+
+        return `<td style="border:1px solid #ddd;padding:6px;">${escapeHtml(value)}</td>`;
+      }).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table style="border-collapse:collapse;">` +
+      `<thead><tr>${headers}</tr></thead>` +
+      `<tbody>${rows}</tbody>` +
+      `</table></body></html>`;
   };
 
   // 获取订单基础字段
@@ -555,8 +574,8 @@ export default function DataExport(props) {
                     <SelectValue placeholder="选择导出格式" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="csv">CSV 格式</SelectItem>
-                    <SelectItem value="excel">Excel 格式</SelectItem>
+                    <SelectItem value="csv">CSV（.csv）</SelectItem>
+                    <SelectItem value="excel">Excel（.xls）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

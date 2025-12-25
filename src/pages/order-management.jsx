@@ -133,6 +133,15 @@ export default function OrderManagement(props) {
     return texts[status] || status;
   };
 
+  const csvEscape = value => {
+    if (value === null || value === undefined) return '';
+    const s = String(value);
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
   // 查看订单详情
   const viewOrderDetail = order => {
     setSelectedOrder(order);
@@ -192,8 +201,18 @@ export default function OrderManagement(props) {
 
       // 生成CSV内容
       const headers = ['用户姓名', '用户手机', '活动标题', '总金额（元）', '状态', '创建时间'];
-      const rows = ordersData.map(order => [order.userName || '', order.userPhone || '', order.activityTitle || '', ((order.amount || 0) / 100).toFixed(2), getStatusText(order.status), formatDate(order.createdAt)].join(','));
-      const csvContent = [headers.join(','), ...rows].join('\n');
+      const rows = ordersData.map(order => {
+        const row = [
+          order.userName || '',
+          order.userPhone || '',
+          order.activityTitle || '',
+          ((order.amount || 0) / 100).toFixed(2),
+          getStatusText(order.status),
+          formatDate(order.createdAt)
+        ];
+        return row.map(csvEscape).join(',');
+      });
+      const csvContent = [headers.map(csvEscape).join(','), ...rows].join('\n');
 
       // 创建下载链接
       const blob = new Blob(['\ufeff' + csvContent], {

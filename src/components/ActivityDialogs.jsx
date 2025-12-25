@@ -101,7 +101,7 @@ export function ActivityDialogs({
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">价格</label>
+                  <label className="text-sm font-medium text-gray-500">价格（元）</label>
                   <div className="mt-1 font-medium text-gray-900">
                     {formatPrice(selectedActivity?.price)}
                   </div>
