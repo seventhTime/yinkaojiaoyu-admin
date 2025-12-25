@@ -99,6 +99,19 @@ function getLoginNameCandidatesFromLoginState(loginState) {
   };
 }
 
+function isAlreadyOnAdminPage() {
+  try {
+    if (typeof window === 'undefined') return false;
+    const href = window.location?.href || '';
+    const u = new URL(href);
+    const pathname = u.pathname || '';
+    const hash = u.hash || '';
+    return pathname.includes('/admin') || hash.includes('admin');
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function ensureAdminAccess($w) {
   const tcb = await $w?.cloud?.getCloudInstance?.();
   if (!tcb) {
@@ -213,7 +226,7 @@ export async function ensureAdminAccess($w) {
       try {
         window.sessionStorage.removeItem(__POST_LOGIN_TO_ADMIN_STORAGE_KEY);
       } catch (e) {}
-      if ($w?.utils?.navigateTo) {
+      if ($w?.utils?.navigateTo && !isAlreadyOnAdminPage()) {
         $w.utils.navigateTo({
           pageId: 'admin',
           params: {
