@@ -87,6 +87,89 @@ export default function OrderManagement(props) {
     label: '已取消'
   }];
 
+  const formatAmount = amount => {
+    if (amount === null || amount === undefined) return '';
+    const num = Number(amount);
+    if (!Number.isFinite(num)) return String(amount);
+    return `￥${(num / 100).toFixed(2)}`;
+  };
+
+  const formatDate = value => {
+    if (value === null || value === undefined || value === '') return '';
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString('zh-CN');
+  };
+
+  const getStatusColor = status => {
+    const colors = {
+      REGISTERED: 'bg-yellow-100 text-yellow-800',
+      PAID: 'bg-green-100 text-green-800',
+      CANCELLED: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusText = status => {
+    const texts = {
+      REGISTERED: '已报名',
+      PAID: '已支付',
+      CANCELLED: '已取消'
+    };
+    return texts[status] || status || '';
+  };
+
+  const csvEscape = (value) => {
+    const s = value === null || value === undefined ? '' : String(value);
+    if (/[\n\r",]/.test(s)) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const htmlEscape = (value) => {
+    const s = value === null || value === undefined ? '' : String(value);
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const viewOrderDetail = (order) => {
+    setSelectedOrder(order || null);
+    setIsDetailDialogOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!selectedOrder?._id) return;
+    try {
+      setLoading(true);
+      const tcb = await $w.cloud.getCloudInstance();
+      const db = tcb.database();
+      const nextStatus = editForm?.status;
+      const amountYuan = Number(editForm?.amount);
+      const nextAmount = Number.isFinite(amountYuan) ? Math.round(amountYuan * 100) : selectedOrder.amount;
+      const updateData = {
+        updatedAt: Date.now()
+      };
+      if (nextStatus) updateData.status = nextStatus;
+      if (nextAmount !== null && nextAmount !== undefined) updateData.amount = nextAmount;
+      await db.collection('orders').doc(selectedOrder._id).update(updateData);
+      setIsEditDialogOpen(false);
+      setSelectedOrder(prev => prev ? {
+        ...prev,
+        ...updateData
+      } : prev);
+      await fetchOrders(page, pageSize);
+    } catch (e) {
+      console.error('保存订单失败:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
