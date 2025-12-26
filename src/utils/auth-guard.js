@@ -213,16 +213,23 @@ export async function ensureAdminAccess($w) {
         } else {
           const parts = (u.pathname || '').split('/').filter(Boolean);
           if (parts[0] && parts[0].startsWith('app-')) {
-            u.pathname = `/${parts[0]}/`;
+            u.pathname = `/${parts[0]}/admin`;
             u.search = '';
             u.hash = '';
             redirectUri = u.toString();
           } else {
-            redirectUri = window.location.href;
+            u.pathname = '/admin';
+            u.search = '';
+            u.hash = '';
+            redirectUri = u.toString();
           }
         }
       } catch (e) {
-        redirectUri = window.location.href;
+        try {
+          redirectUri = `${window.location.origin}/admin`;
+        } catch (e2) {
+          redirectUri = window.location.href;
+        }
       }
     }
 
