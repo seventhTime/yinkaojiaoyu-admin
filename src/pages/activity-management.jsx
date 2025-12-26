@@ -1,7 +1,8 @@
 // @ts-ignore;
 import React, { useState, useEffect } from 'react';
 // @ts-ignore;
-import { Card, CardContent, CardHeader, CardTitle, useToast } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, useToast } from '@/components/ui';
+
 // @ts-ignore;
 import { Activity } from 'lucide-react';
 import { ensureAdminAccess, getAuthSingleton } from './auth-guard';
@@ -31,6 +32,18 @@ export default function ActivityManagementPage(props) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [pageInput, setPageInput] = useState('');
+  const [pageMeta, setPageMeta] = useState({
+    totalKnown: true,
+    hasMore: false
+  });
+
+  // 分页状态
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 50,
+    total: 0
+  });
 
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [formData, setFormData] = useState({
@@ -50,13 +63,6 @@ export default function ActivityManagementPage(props) {
     maxParticipants: ''
   });
 
-  // 分页状态
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-    total: 0
-  });
-
   // 获取当前时间戳（毫秒）
   const getCurrentTimestamp = () => {
     return Date.now();
@@ -69,8 +75,10 @@ export default function ActivityManagementPage(props) {
   };
 
   // 优化后的活动数据加载 - 添加分页和字段投影，避免1MB限制
-  const loadActivities = async (page = 1, reset = false) => {
-    setLoading(true);
+  const loadActivities = async (page = 1, reset = false, keepLoading = false, pageSizeOverride) => {
+    if (!keepLoading) {
+      setLoading(true);
+    }
     try {
       // 构建查询条件
       const filter = {
@@ -134,6 +142,7 @@ export default function ActivityManagementPage(props) {
         createdAt: 1,
         updatedAt: 1
       };
+      const pageSize = pageSizeOverride || pagination.pageSize;
       const result = await $w.cloud.callDataSource({
         dataSourceName: 'activities',
         methodName: 'wedaGetRecordsV2',
@@ -143,8 +152,8 @@ export default function ActivityManagementPage(props) {
           orderBy: [{
             createdAt: 'desc'
           }],
-          pageSize: pagination.pageSize,
-          offset: (page - 1) * pagination.pageSize
+          pageSize: pageSize,
+          offset: (page - 1) * pageSize
         }
       });
       const records = result.records || [];
@@ -161,11 +170,28 @@ export default function ActivityManagementPage(props) {
       }
 
       // 更新分页信息
+      const candidates = [result?.total, result?.totalCount, result?.totalRecords, result?.count, result?.total_count];
+      const explicitTotal = candidates.find(v => typeof v === 'number' && Number.isFinite(v));
+      const minTotal = (page - 1) * pageSize + optimizedRecords.length;
+      const totalKnown = typeof explicitTotal === 'number';
+      const total = totalKnown ? Math.max(explicitTotal, minTotal) : minTotal;
+      const hasMore = totalKnown ? page * pageSize < total : optimizedRecords.length === pageSize;
       setPagination(prev => ({
         ...prev,
         current: page,
-        total: result.total || 0
+        pageSize,
+        total
       }));
+      setPageMeta({
+        totalKnown,
+        hasMore
+      });
+
+      return {
+        hasMore,
+        total,
+        totalKnown
+      };
     } catch (error) {
       console.error('加载活动数据失败:', error);
       toast({
@@ -174,8 +200,18 @@ export default function ActivityManagementPage(props) {
         variant: "destructive"
       });
       setActivities([]);
+      setPageMeta({
+        totalKnown: true,
+        hasMore: false
+      });
+      return {
+        hasMore: false,
+        total: 0
+      };
     } finally {
-      setLoading(false);
+      if (!keepLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -792,7 +828,36 @@ export default function ActivityManagementPage(props) {
   };
 
   // 检查是否还有更多数据
-  const hasMore = pagination.current * pagination.pageSize < pagination.total;
+  const totalPages = pageMeta.totalKnown ? Math.max(1, Math.ceil((pagination.total || 0) / pagination.pageSize)) : 0;
+  const hasMore = pageMeta.totalKnown ? pagination.current * pagination.pageSize < pagination.total : pageMeta.hasMore;
+
+  const handlePrevPage = () => {
+    if (pagination.current <= 1) return;
+    loadActivities(pagination.current - 1, true);
+  };
+
+  const handleNextPage = () => {
+    if (!hasMore) return;
+    loadActivities(pagination.current + 1, true);
+  };
+
+  const handleJumpPage = () => {
+    if (!pageMeta.totalKnown) return;
+    const target = parseInt(pageInput, 10);
+    if (!target || target < 1 || target > totalPages) return;
+    loadActivities(target, true);
+  };
+
+  const handleChangePageSize = (newSize) => {
+    const pageSize = parseInt(newSize, 10);
+    if (!pageSize || pageSize <= 0) return;
+    setPagination(prev => ({
+      ...prev,
+      pageSize,
+      current: 1
+    }));
+    loadActivities(1, true, false, pageSize);
+  };
 
   // 返回管理后台
   const handleBackToAdmin = () => {
@@ -856,7 +921,44 @@ export default function ActivityManagementPage(props) {
         <ActivityFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onCreateActivity={() => setShowCreateDialog(true)} onBackToAdmin={handleBackToAdmin} />
 
         {/* 活动列表 */}
-        <ActivityList activities={activities} loading={loading} onEdit={openEditDialog} onDelete={handleDeleteActivity} onView={openDetailDialog} onTogglePublish={handleTogglePublish} getStatusDisplay={getStatusDisplay} getStatusColor={getStatusColor} formatDateTime={formatDateTime} formatPrice={formatPrice} onLoadMore={handleLoadMore} hasMore={hasMore} />
+        <ActivityList activities={activities} loading={loading} onEdit={openEditDialog} onDelete={handleDeleteActivity} onView={openDetailDialog} onTogglePublish={handleTogglePublish} getStatusDisplay={getStatusDisplay} getStatusColor={getStatusColor} formatDateTime={formatDateTime} formatPrice={formatPrice} onLoadMore={handleLoadMore} hasMore={false} />
+
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-sm text-gray-600">
+            {pageMeta.totalKnown ? `共 ${pagination.total || 0} 条，当前第 ${pagination.current}/${totalPages} 页` : `当前已加载 ${activities.length} 条${hasMore ? '，可能还有更多' : ''}`}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="h-9 px-2 rounded-md border border-gray-200 bg-white text-sm"
+              value={String(pagination.pageSize)}
+              onChange={(e) => {
+              const value = e.target.value;
+              handleChangePageSize(value);
+            }}
+            >
+              <option value="20">20/页</option>
+              <option value="50">50/页</option>
+              <option value="100">100/页</option>
+            </select>
+            <Button variant="outline" disabled={pagination.current <= 1} onClick={handlePrevPage}>上一页</Button>
+            <Button variant="outline" disabled={!hasMore} onClick={handleNextPage}>下一页</Button>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="1"
+                placeholder="页码"
+                value={pageInput}
+                disabled={!pageMeta.totalKnown}
+                onChange={(e) => {
+                const value = e.target.value;
+                setPageInput(value);
+              }}
+                className="w-24"
+              />
+              <Button variant="outline" disabled={!pageMeta.totalKnown} onClick={handleJumpPage}>跳转</Button>
+            </div>
+          </div>
+        </div>
 
         {/* 对话框 */}
         <ActivityDialogs showCreateDialog={showCreateDialog} setShowCreateDialog={setShowCreateDialog} showEditDialog={showEditDialog} setShowEditDialog={setShowEditDialog} showDetailDialog={showDetailDialog} setShowDetailDialog={setShowDetailDialog} selectedActivity={selectedActivity} formData={formData} setFormData={setFormData} onCreateActivity={handleCreateActivity} onUpdateActivity={handleUpdateActivity} onEdit={openEditDialog} onTogglePublish={handleTogglePublish} getStatusDisplay={getStatusDisplay} getStatusColor={getStatusColor} formatDateTime={formatDateTime} formatPrice={formatPrice} handleBannerImageUpload={handleBannerImageUpload} handleRemoveBannerImage={handleRemoveBannerImage} handleDetailImageUpload={handleDetailImageUpload} handleRemoveDetailImage={handleRemoveDetailImage} handleAddTag={handleAddTag} handleRemoveTag={handleRemoveTag} />

@@ -54,6 +54,7 @@ export default function OrderManagement(props) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [exportFormat, setExportFormat] = useState('csv');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -180,6 +181,16 @@ export default function OrderManagement(props) {
     return s;
   };
 
+  const htmlEscape = value => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
   // 查看订单详情
   const viewOrderDetail = order => {
     setSelectedOrder(order);
@@ -237,29 +248,51 @@ export default function OrderManagement(props) {
       const result = await db.collection('orders').get();
       const ordersData = result.data || [];
 
-      // 生成CSV内容
       const headers = ['用户姓名', '用户手机', '活动标题', '总金额（元）', '状态', '创建时间'];
-      const rows = ordersData.map(order => {
-        const row = [
-          order.userName || '',
-          order.userPhone || '',
-          order.activityTitle || '',
-          ((order.amount || 0) / 100).toFixed(2),
-          getStatusText(order.status),
-          formatDate(order.createdAt)
-        ];
-        return row.map(csvEscape).join(',');
-      });
-      const csvContent = [headers.map(csvEscape).join(','), ...rows].join('\n');
+      const rows = ordersData.map(order => ([
+        order.userName || '',
+        order.userPhone || '',
+        order.activityTitle || '',
+        ((order.amount || 0) / 100).toFixed(2),
+        getStatusText(order.status),
+        formatDate(order.createdAt)
+      ]));
+
+      let blob;
+      let fileExt;
+      let mimeType;
+      if (exportFormat === 'excel') {
+        const table = [
+          '<table border="1">',
+          '<thead><tr>',
+          ...headers.map(h => `<th>${htmlEscape(h)}</th>`),
+          '</tr></thead>',
+          '<tbody>',
+          ...rows.map(row => `<tr>${row.map(cell => `<td>${htmlEscape(cell)}</td>`).join('')}</tr>`),
+          '</tbody>',
+          '</table>'
+        ].join('');
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${table}</body></html>`;
+        fileExt = 'xls';
+        mimeType = 'application/vnd.ms-excel;charset=utf-8;';
+        blob = new Blob([html], {
+          type: mimeType
+        });
+      } else {
+        const csvRows = rows.map(row => row.map(csvEscape).join(','));
+        const csvContent = [headers.map(csvEscape).join(','), ...csvRows].join('\n');
+        fileExt = 'csv';
+        mimeType = 'text/csv;charset=utf-8;';
+        blob = new Blob(['\ufeff' + csvContent], {
+          type: mimeType
+        });
+      }
 
       // 创建下载链接
-      const blob = new Blob(['\ufeff' + csvContent], {
-        type: 'text/csv;charset=utf-8;'
-      });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.${fileExt}`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -371,6 +404,17 @@ export default function OrderManagement(props) {
               {statusOptions.map(option => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
+            </select>
+            <select
+              className="w-32 h-10 px-3 rounded-md border border-blue-100 bg-white/80"
+              value={exportFormat}
+              onChange={(e) => {
+              const value = e.target.value;
+              setExportFormat(value);
+            }}
+            >
+              <option value="csv">CSV</option>
+              <option value="excel">Excel</option>
             </select>
             <Button onClick={exportOrders} disabled={isExporting} className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-70">
               {isExporting ? <><RefreshCw className="w-4 h-4 animate-spin" />导出中...</> : <><Download className="w-4 h-4" />导出</>}
