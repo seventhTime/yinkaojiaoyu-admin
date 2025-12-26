@@ -54,7 +54,7 @@ export default function ActivityManagementPage(props) {
     desc: '',
     price: '',
     address: '',
-    callNumber: '',
+    callNumber: [],
     startTime: '',
     endTime: '',
     tags: [],
@@ -74,6 +74,60 @@ export default function ActivityManagementPage(props) {
     if (typeof num !== 'string') return false;
     const v = num.trim();
     return /^1\d{10}$/.test(v);
+  };
+
+  const isValidCallNumber = (num) => {
+    if (typeof num !== 'string') return false;
+    const v = num.trim();
+    return /^1\d{10}$/.test(v);
+  };
+
+  const normalizeContacts = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          name: typeof item?.name === 'string' ? item.name : '',
+          phone: typeof item?.phone === 'string' ? item.phone : ''
+        }))
+        .map((item) => ({
+          name: (item.name || '').trim(),
+          phone: String(item.phone || '').replace(/\D/g, '').slice(0, 11)
+        }));
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const digits = String(value).replace(/\D/g, '').slice(0, 11);
+      return digits ? [{ name: '', phone: digits }] : [];
+    }
+    return [];
+  };
+
+  const validateContactsOrToast = (value) => {
+    const normalized = normalizeContacts(value);
+    const meaningful = normalized.filter((c) => c && (c.name || c.phone));
+    const invalid = meaningful.filter((c) => {
+      const hasName = !!(c.name && String(c.name).trim());
+      const hasPhone = !!(c.phone && String(c.phone).trim());
+      if (hasName && !hasPhone) return true; // 不能只有姓名
+      if (hasPhone && !isValidCallNumber(c.phone)) return true;
+      return false;
+    });
+    if (invalid.length > 0) {
+      toast({
+        title: "验证失败",
+        description: `联系号码格式不正确（允许仅手机号；不允许仅姓名；手机号仅支持1开头11位），请检查：${invalid.slice(0, 3).map(c => `${c.name ? c.name + '-' : ''}${c.phone || '未填号码'}`).join('、')}${invalid.length > 3 ? '…' : ''}`,
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    const toSave = meaningful
+      .filter((c) => (c.phone && isValidCallNumber(c.phone)) || (!c.phone && !(c.name && String(c.name).trim())))
+      .filter((c) => c.phone && isValidCallNumber(c.phone))
+      .map((c) => ({
+        name: (c.name || '').trim(),
+        phone: c.phone
+      }));
+    return toSave;
   };
 
   // 优化后的活动数据加载 - 添加分页和字段投影，避免1MB限制
@@ -355,7 +409,7 @@ export default function ActivityManagementPage(props) {
               },
               data: {
                 isActive: false,
-                updatedAt: getCurrentTimestamp() // 使用时间戳
+                updatedAt: getCurrentTimestamp()
               }
             }
           });
@@ -390,7 +444,7 @@ export default function ActivityManagementPage(props) {
           },
           data: {
             isActive: !activity.isActive,
-            updatedAt: getCurrentTimestamp() // 使用时间戳
+            updatedAt: getCurrentTimestamp()
           }
         }
       });
@@ -398,7 +452,7 @@ export default function ActivityManagementPage(props) {
         title: activity.isActive ? "下架成功" : "发布成功",
         description: `活动"${activity.title}"已${activity.isActive ? '下架' : '发布'}`
       });
-      loadActivities(1, true); // 重新加载数据
+      loadActivities(1, true);
     } catch (error) {
       console.error('切换发布状态失败:', error);
       toast({
@@ -431,6 +485,9 @@ export default function ActivityManagementPage(props) {
       return;
     }
 
+    const contactListToSave = validateContactsOrToast(formData.callNumber);
+    if (contactListToSave === null) return;
+
     // 如果要创建的活动是发布状态，检查是否已有发布的活动
     if (formData.isActive && checkHasPublishedActivity()) {
       const existingPublished = getPublishedActivity();
@@ -452,7 +509,7 @@ export default function ActivityManagementPage(props) {
             },
             data: {
               isActive: false,
-              updatedAt: getCurrentTimestamp() // 使用时间戳
+              updatedAt: getCurrentTimestamp()
             }
           }
         });
@@ -470,34 +527,26 @@ export default function ActivityManagementPage(props) {
         return;
       }
     }
+
     try {
-      const callNumberValue = (formData.callNumber || '').trim();
-      // 准备活动数据，确保所有字段都符合数据集结构
       const activityData = {
         title: formData.title.trim(),
         subtitle: formData.subtitle.trim(),
         desc: formData.desc.trim(),
-        price: Math.round((parseFloat(formData.price) || 0) * 100), // 元转分存储
+        price: Math.round((parseFloat(formData.price) || 0) * 100),
         address: formData.address.trim(),
         startTime: formData.startTime,
         endTime: formData.endTime,
-        // 修复：添加空值检查，确保 tag 不为 undefined
         tags: formData.tags.filter(tag => tag && typeof tag === 'string' && tag.trim()),
         customerNumbers: (Array.isArray(formData.customerNumbers) ? formData.customerNumbers : []).filter(num => num && typeof num === 'string' && isValidCustomerNumber(num)),
-        // 修复：添加空值检查，确保 img 不为 undefined
         bannerImages: formData.bannerImages.filter(img => img && typeof img === 'string' && img.trim()),
-        // 修复：添加空值检查，确保 img 不为 undefined
         detailImages: formData.detailImages.filter(img => img && typeof img === 'string' && img.trim()),
+        callNumber: contactListToSave || [],
         isActive: formData.isActive,
         maxParticipants: parseInt(formData.maxParticipants) || 0,
         createdAt: getCurrentTimestamp(),
-        // 使用时间戳
-        updatedAt: getCurrentTimestamp() // 使用时间戳
+        updatedAt: getCurrentTimestamp()
       };
-
-      if (callNumberValue) {
-        activityData.callNumber = callNumberValue;
-      }
 
       await $w.cloud.callDataSource({
         dataSourceName: 'activities',
@@ -506,13 +555,14 @@ export default function ActivityManagementPage(props) {
           data: activityData
         }
       });
+
       toast({
         title: "创建成功",
         description: "活动已成功创建并保存到数据集"
       });
       setShowCreateDialog(false);
       resetForm();
-      loadActivities(1, true); // 重新加载数据
+      loadActivities(1, true);
     } catch (error) {
       console.error('创建活动失败:', error);
       toast({
@@ -545,13 +595,15 @@ export default function ActivityManagementPage(props) {
       return;
     }
 
+    const contactListToSave = validateContactsOrToast(formData.callNumber);
+    if (contactListToSave === null) return;
+
     // 如果要更新的活动是发布状态，且不是当前已发布的活动，检查是否已有发布的活动
-    if (formData.isActive && !selectedActivity.isActive && checkHasPublishedActivity()) {
+    if (formData.isActive && selectedActivity && !selectedActivity.isActive && checkHasPublishedActivity()) {
       const existingPublished = getPublishedActivity();
       const confirmUnpublish = confirm(`已有活动"${existingPublished.title}"正在发布中，是否要下架该活动并发布"${formData.title}"？`);
       if (!confirmUnpublish) return;
 
-      // 先下架已发布的活动
       try {
         await $w.cloud.callDataSource({
           dataSourceName: 'activities',
@@ -566,7 +618,7 @@ export default function ActivityManagementPage(props) {
             },
             data: {
               isActive: false,
-              updatedAt: getCurrentTimestamp() // 使用时间戳
+              updatedAt: getCurrentTimestamp()
             }
           }
         });
@@ -584,32 +636,25 @@ export default function ActivityManagementPage(props) {
         return;
       }
     }
+
     try {
-      const callNumberValue = (formData.callNumber || '').trim();
-      // 准备更新数据，确保所有字段都符合数据集结构
       const activityData = {
         title: formData.title.trim(),
         subtitle: formData.subtitle.trim(),
         desc: formData.desc.trim(),
-        price: Math.round((parseFloat(formData.price) || 0) * 100), // 元转分存储
+        price: Math.round((parseFloat(formData.price) || 0) * 100),
         address: formData.address.trim(),
         startTime: formData.startTime,
         endTime: formData.endTime,
-        // 修复：添加空值检查，确保 tag 不为 undefined
         tags: formData.tags.filter(tag => tag && typeof tag === 'string' && tag.trim()),
         customerNumbers: (Array.isArray(formData.customerNumbers) ? formData.customerNumbers : []).filter(num => num && typeof num === 'string' && isValidCustomerNumber(num)),
-        // 修复：添加空值检查，确保 img 不为 undefined
         bannerImages: formData.bannerImages.filter(img => img && typeof img === 'string' && img.trim()),
-        // 修复：添加空值检查，确保 img 不为 undefined
         detailImages: formData.detailImages.filter(img => img && typeof img === 'string' && img.trim()),
+        callNumber: contactListToSave || [],
         isActive: formData.isActive,
         maxParticipants: parseInt(formData.maxParticipants) || 0,
-        updatedAt: getCurrentTimestamp() // 使用时间戳
+        updatedAt: getCurrentTimestamp()
       };
-
-      if (callNumberValue) {
-        activityData.callNumber = callNumberValue;
-      }
 
       await $w.cloud.callDataSource({
         dataSourceName: 'activities',
@@ -625,13 +670,14 @@ export default function ActivityManagementPage(props) {
           data: activityData
         }
       });
+
       toast({
         title: "更新成功",
         description: "活动信息已更新并保存到数据集"
       });
       setShowEditDialog(false);
       resetForm();
-      loadActivities(1, true); // 重新加载数据
+      loadActivities(1, true);
     } catch (error) {
       console.error('更新活动失败:', error);
       toast({
@@ -665,7 +711,7 @@ export default function ActivityManagementPage(props) {
         title: "删除成功",
         description: "活动已从数据集中删除"
       });
-      loadActivities(1, true); // 重新加载数据
+      loadActivities(1, true);
     } catch (error) {
       console.error('删除活动失败:', error);
       toast({
@@ -676,18 +722,18 @@ export default function ActivityManagementPage(props) {
     }
   };
 
-  // 图片上传回调函数
+  // 轮播图图片回调函数
   const handleBannerImageUpload = (fileID) => {
     setFormData((prev) => ({
       ...prev,
-      bannerImages: [...prev.bannerImages, fileID]
+      bannerImages: [...(Array.isArray(prev.bannerImages) ? prev.bannerImages : []), fileID]
     }));
   };
 
   const handleRemoveBannerImage = (index) => {
     setFormData((prev) => ({
       ...prev,
-      bannerImages: prev.bannerImages.filter((_, i) => i !== index)
+      bannerImages: (Array.isArray(prev.bannerImages) ? prev.bannerImages : []).filter((_, i) => i !== index)
     }));
   };
 
@@ -730,7 +776,7 @@ export default function ActivityManagementPage(props) {
       desc: '',
       price: '',
       address: '',
-      callNumber: '',
+      callNumber: [],
       startTime: '',
       endTime: '',
       tags: [],
@@ -757,7 +803,7 @@ export default function ActivityManagementPage(props) {
           desc: fullActivity.desc || '',
           price: fullActivity.price ? (fullActivity.price / 100).toString() : '', // 分转元显示
           address: fullActivity.address || '',
-          callNumber: fullActivity.callNumber || '',
+          callNumber: normalizeContacts(fullActivity.callNumber),
           startTime: fullActivity.startTime || '',
           endTime: fullActivity.endTime || '',
           tags: fullActivity.tags || [],
@@ -955,7 +1001,10 @@ export default function ActivityManagementPage(props) {
         </div>
 
         {/* 筛选和操作区域 */}
-        <ActivityFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onCreateActivity={() => setShowCreateDialog(true)} onBackToAdmin={handleBackToAdmin} />
+        <ActivityFilters searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onCreateActivity={() => {
+          resetForm();
+          setShowCreateDialog(true);
+        }} onBackToAdmin={handleBackToAdmin} />
 
         {/* 活动列表 */}
         <ActivityList activities={activities} loading={loading} onEdit={openEditDialog} onDelete={handleDeleteActivity} onView={openDetailDialog} onTogglePublish={handleTogglePublish} getStatusDisplay={getStatusDisplay} getStatusColor={getStatusColor} formatDateTime={formatDateTime} formatPrice={formatPrice} onLoadMore={handleLoadMore} hasMore={false} />

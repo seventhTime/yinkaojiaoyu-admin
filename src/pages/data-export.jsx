@@ -1,5 +1,5 @@
 // @ts-ignore;
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore;
 import { Card, CardContent, CardHeader, CardTitle, Button, Checkbox, Label } from '@/components/ui';
 // @ts-ignore;
@@ -31,6 +31,8 @@ export default function DataExport(props) {
   const [authChecked, setAuthChecked] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [currentUid, setCurrentUid] = useState('');
+
+  const createdAtTypeCacheRef = useRef({});
 
   // 订单字段（不包含活动相关字段）
   const orderOnlyFields = [
@@ -186,6 +188,45 @@ export default function DataExport(props) {
     return String(value);
   };
 
+  const detectCreatedAtType = async (db, collectionName) => {
+    try {
+      const cached = createdAtTypeCacheRef.current?.[collectionName];
+      if (cached) return cached;
+
+      let q = db.collection(collectionName);
+      try {
+        if (q?.field) {
+          q = q.field({
+            createdAt: true
+          });
+        }
+      } catch (e) {}
+      try {
+        if (q?.orderBy) {
+          q = q.orderBy('createdAt', 'desc');
+        }
+      } catch (e) {}
+      try {
+        if (q?.limit) {
+          q = q.limit(1);
+        }
+      } catch (e) {}
+
+      const res = await q.get();
+      const data = res?.data;
+      const first = Array.isArray(data) ? (data[0] || null) : (data || null);
+      const v = first?.createdAt;
+      const t = typeof v === 'number' ? 'number' : (typeof v === 'string' ? 'string' : 'unknown');
+      createdAtTypeCacheRef.current = {
+        ...(createdAtTypeCacheRef.current || {}),
+        [collectionName]: t
+      };
+      return t;
+    } catch (e) {
+      return 'unknown';
+    }
+  };
+
   const loadPreviewData = async (pageOverride, pageSizeOverride) => {
     if (!authChecked || forbidden) {
       setPreviewData([]);
@@ -221,13 +262,28 @@ export default function DataExport(props) {
       let whereObj = null;
       if (range && cmd?.gte && cmd?.lte) {
         const { startDate, endDate } = range;
-        const startTs = startDate.getTime();
-        const endTs = endDate.getTime();
-        try {
-          whereObj = {
-            createdAt: cmd.gte(startTs).and(cmd.lte(endTs))
-          };
-        } catch (e) {
+        const createdAtType = await detectCreatedAtType(db, collectionName);
+        if (createdAtType === 'string') {
+          const startStr = formatDateTime(startDate);
+          const endStr = formatDateTime(endDate);
+          try {
+            whereObj = {
+              createdAt: cmd.gte(startStr).and(cmd.lte(endStr))
+            };
+          } catch (e) {
+            whereObj = null;
+          }
+        } else if (createdAtType === 'number') {
+          const startTs = startDate.getTime();
+          const endTs = endDate.getTime();
+          try {
+            whereObj = {
+              createdAt: cmd.gte(startTs).and(cmd.lte(endTs))
+            };
+          } catch (e) {
+            whereObj = null;
+          }
+        } else {
           whereObj = null;
         }
       }
@@ -375,6 +431,9 @@ export default function DataExport(props) {
         startDate.setFullYear(now.getFullYear() - 1);
         break;
     }
+    try {
+      startDate.setHours(0, 0, 0, 0);
+    } catch (e) {}
     return { startDate, endDate: now };
   };
 
@@ -482,13 +541,28 @@ export default function DataExport(props) {
       let whereObj = null;
       if (range && cmd?.gte && cmd?.lte) {
         const { startDate, endDate } = range;
-        const startTs = startDate.getTime();
-        const endTs = endDate.getTime();
-        try {
-          whereObj = {
-            createdAt: cmd.gte(startTs).and(cmd.lte(endTs))
-          };
-        } catch (e) {
+        const createdAtType = await detectCreatedAtType(db, collectionName);
+        if (createdAtType === 'string') {
+          const startStr = formatDateTime(startDate);
+          const endStr = formatDateTime(endDate);
+          try {
+            whereObj = {
+              createdAt: cmd.gte(startStr).and(cmd.lte(endStr))
+            };
+          } catch (e) {
+            whereObj = null;
+          }
+        } else if (createdAtType === 'number') {
+          const startTs = startDate.getTime();
+          const endTs = endDate.getTime();
+          try {
+            whereObj = {
+              createdAt: cmd.gte(startTs).and(cmd.lte(endTs))
+            };
+          } catch (e) {
+            whereObj = null;
+          }
+        } else {
           whereObj = null;
         }
       }

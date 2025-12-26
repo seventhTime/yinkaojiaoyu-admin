@@ -55,6 +55,35 @@ export function ActivityDetailDialog({
   formatPrice
 }) {
   if (!activity) return null;
+
+  const normalizeContacts = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          name: typeof item?.name === 'string' ? item.name : '',
+          phone: typeof item?.phone === 'string' ? item.phone : ''
+        }))
+        .map((item) => ({
+          name: (item.name || '').trim(),
+          phone: String(item.phone || '').replace(/\D/g, '').slice(0, 11)
+        }))
+        .filter((c) => c.name || c.phone);
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const digits = String(value).replace(/\D/g, '').slice(0, 11);
+      return digits ? [{ name: '', phone: digits }] : [];
+    }
+    return [];
+  };
+
+  const contactText = (() => {
+    const list = normalizeContacts(activity.callNumber);
+    const normalized = list
+      .filter((c) => c && c.phone)
+      .map((c) => (c.name ? `${c.name} ${c.phone}` : c.phone));
+    return normalized.join('，');
+  })();
+
   return <InlineModal open={open} onOpenChange={onOpenChange} className="max-w-2xl max-h-[90vh] overflow-y-auto">
       <div className="p-6">
         <div className="text-2xl font-bold">{activity.title}</div>
@@ -67,7 +96,7 @@ export function ActivityDetailDialog({
               <div>
                 <label className="text-sm font-medium text-gray-500">状态</label>
                 <div className="mt-1">
-                  <Badge className={getStatusColor(activity.isActive)}>
+                  <Badge variant={getStatusColor(activity.isActive)}>
                     {getStatusDisplay(activity.isActive)}
                   </Badge>
                 </div>
@@ -80,7 +109,7 @@ export function ActivityDetailDialog({
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">联系电话</label>
-                <div className="mt-1 text-gray-900">{activity.callNumber || '-'}</div>
+                <div className="mt-1 text-gray-900 whitespace-pre-wrap">{contactText || '-'}</div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">开始时间</label>

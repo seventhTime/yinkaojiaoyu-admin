@@ -1,9 +1,9 @@
 // @ts-ignore;
 import React from 'react';
 // @ts-ignore;
-import { Button } from '@/components/ui';
+import { Button, Badge } from '@/components/ui';
 // @ts-ignore;
-import { Badge, MapPin, Tag, ImageIcon, Phone } from 'lucide-react';
+import { MapPin, Tag, ImageIcon, Phone } from 'lucide-react';
 
 // @ts-ignore;
 import { ActivityForm } from './ActivityForm';
@@ -71,6 +71,52 @@ export function ActivityDialogs({
   handleAddTag,
   handleRemoveTag
 }) {
+  const normalizeContacts = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          name: typeof item?.name === 'string' ? item.name : '',
+          phone: typeof item?.phone === 'string' ? item.phone : ''
+        }))
+        .map((item) => ({
+          name: (item.name || '').trim(),
+          phone: String(item.phone || '').replace(/\D/g, '').slice(0, 11)
+        }))
+        .filter((c) => c.name || c.phone);
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const digits = String(value).replace(/\D/g, '').slice(0, 11);
+      return digits ? [{ name: '', phone: digits }] : [];
+    }
+    return [];
+  };
+
+  const contactText = (() => {
+    const list = normalizeContacts(selectedActivity?.callNumber);
+    const normalized = list
+      .filter((c) => c && c.phone)
+      .map((c) => (c.name ? `${c.name} ${c.phone}` : c.phone));
+    return normalized.join('，');
+  })();
+
+  const normalizePhoneList = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .filter(v => typeof v === 'string')
+        .map(v => v.trim())
+        .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(/[\n,，、\s]+/)
+        .map(v => (v || '').trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const customerNumbersList = normalizePhoneList(selectedActivity?.customerNumbers);
+
   // 处理表单提交
   const handleCreateSubmit = () => {
     onCreateActivity();
@@ -129,7 +175,7 @@ export function ActivityDialogs({
               <div>
                 <label className="text-sm font-medium text-gray-500">状态</label>
                 <div className="mt-1">
-                  <Badge className={getStatusColor(selectedActivity?.isActive)}>
+                  <Badge variant={getStatusColor(selectedActivity?.isActive)}>
                     {getStatusDisplay(selectedActivity?.isActive)}
                   </Badge>
                 </div>
@@ -142,7 +188,7 @@ export function ActivityDialogs({
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">联系电话</label>
-                <div className="mt-1 text-gray-900">{selectedActivity?.callNumber || '-'}</div>
+                <div className="mt-1 text-gray-900 whitespace-pre-wrap">{contactText || '-'}</div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">开始时间</label>
@@ -179,20 +225,20 @@ export function ActivityDialogs({
           </div>
 
           {/* 客户号码 */}
-          {selectedActivity?.customerNumbers && selectedActivity.customerNumbers.length > 0 && <div>
+          {customerNumbersList.length > 0 && <div>
             <h3 className="text-lg font-semibold mb-3 flex items-center">
               <Phone className="w-4 h-4 mr-2" />
               客户号码
             </h3>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {selectedActivity.customerNumbers.map((phone, index) => <div key={index} className="flex items-center space-x-2 text-sm text-gray-700 bg-white px-3 py-2 rounded border border-gray-200">
+                {customerNumbersList.map((phone, index) => <div key={index} className="flex items-center space-x-2 text-sm text-gray-700 bg-white px-3 py-2 rounded border border-gray-200">
                   <Phone className="w-3 h-3 text-gray-400" />
                   <span>{phone}</span>
                 </div>)}
               </div>
               <div className="mt-2 text-xs text-gray-500">
-                共 {selectedActivity.customerNumbers.length} 个客户号码
+                共 {customerNumbersList.length} 个客户号码
               </div>
             </div>
           </div>}

@@ -16,6 +16,45 @@ export function ActivityCard({
   formatDateTime,
   formatPrice
 }) {
+  const normalizeContacts = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          name: typeof item?.name === 'string' ? item.name : '',
+          phone: typeof item?.phone === 'string' ? item.phone : ''
+        }))
+        .map((item) => ({
+          name: (item.name || '').trim(),
+          phone: String(item.phone || '').replace(/\D/g, '').slice(0, 11)
+        }))
+        .filter((c) => c.name || c.phone);
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const digits = String(value).replace(/\D/g, '').slice(0, 11);
+      return digits ? [{ name: '', phone: digits }] : [];
+    }
+    return [];
+  };
+
+  const contactText = (() => {
+    const list = normalizeContacts(activity?.callNumber);
+    const normalized = list
+      .filter((c) => c && c.phone)
+      .map((c) => (c.name ? `${c.name} ${c.phone}` : c.phone));
+    return normalized.join('，');
+  })();
+
+  const timeText = (() => {
+    const start = activity?.startTime;
+    const end = activity?.endTime;
+    if (start && end) {
+      return `${formatDateTime(start)} - ${formatDateTime(end)}`;
+    }
+    if (start) return formatDateTime(start);
+    if (end) return formatDateTime(end);
+    return '';
+  })();
+
   // 获取云存储文件的临时访问链接
   const getTempFileURL = async fileID => {
     try {
@@ -37,7 +76,6 @@ export function ActivityCard({
   };
 
   // 渲染图片组件，支持云存储fileID
-  // 渲染图片组件，支持云存储fileID
   const renderImage = (src, alt, className) => {
     // 如果是云存储的fileID格式，尝试获取临时链接
     if (src && typeof src === 'string' && (src.includes('cloud://') || src.includes('tcb://'))) {
@@ -57,12 +95,12 @@ export function ActivityCard({
     }
 
     // 普通URL或base64图片
-    // 普通URL或base64图片
     return <img src={src} alt={alt} className={className} onError={e => {
       console.error('图片加载失败:', src);
       e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMzUgNzVIMTY1VjEyNUgxMzVWNzVaIiBmaWxsPSIjRDFEREIiLz4KPHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMjAiIHk9IjcwIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRDFEREIiLz4KPHBhdGggZD0iTTE4IDMwSDQyVjQySDE4VjMwWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+Cjwvc3ZnPgo=';
     }} />;
   };
+
   return <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       {/* 活动图片 */}
       <div className="aspect-video bg-gray-100 relative overflow-hidden">
@@ -108,12 +146,12 @@ export function ActivityCard({
           </div>
 
           {/* 时间 */}
-          {activity.startTime && <div className="flex items-center text-sm text-gray-500">
+          {timeText ? <div className="flex items-center text-sm text-gray-500">
               <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
               <span className="line-clamp-1">
-                {formatDateTime(activity.startTime)}
+                {timeText}
               </span>
-            </div>}
+            </div> : null}
 
           {/* 地址 */}
           {activity.address && <div className="flex items-center text-sm text-gray-500">
@@ -123,13 +161,13 @@ export function ActivityCard({
               </span>
             </div>}
 
-          {/* 客户号码 */}
-          {activity.customerNumbers && activity.customerNumbers.length > 0 && <div className="flex items-center text-sm text-gray-500">
+          {/* 联系电话 */}
+          {contactText ? <div className="flex items-center text-sm text-gray-500">
               <Phone className="w-4 h-4 mr-2 flex-shrink-0" />
               <span className="line-clamp-1">
-                {activity.customerNumbers.length} 个客户号码
+                {contactText}
               </span>
-            </div>}
+            </div> : null}
         </div>
 
         {/* 标签 */}

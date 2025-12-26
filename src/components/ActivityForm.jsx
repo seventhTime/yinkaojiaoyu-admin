@@ -63,10 +63,12 @@ export function ActivityForm({
   const [detailUploading, setDetailUploading] = useState(false);
   const [customerNumbersText, setCustomerNumbersText] = useState('');
   const [customerNumbersError, setCustomerNumbersError] = useState('');
+  const [contactNumbersError, setContactNumbersError] = useState('');
   const [draggedBannerIndex, setDraggedBannerIndex] = useState(null);
   const [dragOverBannerIndex, setDragOverBannerIndex] = useState(null);
   const [draggedDetailIndex, setDraggedDetailIndex] = useState(null);
   const [dragOverDetailIndex, setDragOverDetailIndex] = useState(null);
+
   const bannerInputRef = useRef(null);
   const detailInputRef = useRef(null);
   const customerNumbersInputRef = useRef(null);
@@ -77,12 +79,63 @@ export function ActivityForm({
     return /^1\d{10}$/.test(v);
   };
 
-  const parseCustomerNumbers = (text) => {
-    return (text || '')
-      .split(/\r?\n/)
-      .map(line => (line || '').trim())
-      .filter(Boolean);
+  const isValidCallNumber = (num) => {
+    if (typeof num !== 'string') return false;
+    const v = num.trim();
+    return /^1\d{10}$/.test(v);
   };
+
+  const normalizeContacts = (value) => {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => ({
+          name: typeof item?.name === 'string' ? item.name : '',
+          phone: typeof item?.phone === 'string' ? item.phone : ''
+        }))
+        .map((item) => ({
+          name: (item.name || '').trim(),
+          phone: String(item.phone || '').replace(/\D/g, '').slice(0, 11)
+        }));
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      const digits = String(value).replace(/\D/g, '').slice(0, 11);
+      return digits ? [{
+        name: '',
+        phone: digits
+      }] : [];
+    }
+    return [];
+  };
+
+  const getContacts = () => {
+    return normalizeContacts(formData.callNumber);
+  };
+
+  const setContacts = (nextList) => {
+    const safeList = Array.isArray(nextList) ? nextList : [];
+    setFormData((prev) => ({
+      ...prev,
+      callNumber: safeList
+    }));
+  };
+
+  const validateContacts = (list) => {
+    const normalized = normalizeContacts(list);
+    const meaningful = normalized.filter((c) => c && (c.name || c.phone));
+    const invalid = meaningful.filter((c) => {
+      const hasName = !!(c.name && String(c.name).trim());
+      const hasPhone = !!(c.phone && String(c.phone).trim());
+      if (hasName && !hasPhone) return true; // 不能只有姓名
+      if (hasPhone && !isValidCallNumber(c.phone)) return true;
+      return false;
+    });
+
+    setContactNumbersError(invalid.length > 0 ? `存在 ${invalid.length} 条联系号码格式不正确（允许仅手机号；不允许仅姓名；手机号仅支持1开头11位）：${invalid.slice(0, 3).map(c => `${c.name ? c.name + '-' : ''}${c.phone || '未填号码'}`).join('、')}${invalid.length > 3 ? '…' : ''}` : '');
+  };
+
+  React.useEffect(() => {
+    validateContacts(formData.callNumber);
+  }, [formData.callNumber]);
 
   React.useEffect(() => {
     const current = Array.isArray(formData.customerNumbers) ? formData.customerNumbers : [];
@@ -380,13 +433,66 @@ export function ActivityForm({
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">联系电话</label>
-          <Input value={formData.callNumber || ''} onChange={(e) => {
-          const value = e.target.value;
-          setFormData((prev) => ({
-          ...prev,
-          callNumber: value }));
-        }}
-        placeholder="请输入联系电话（手机号/座机）" />
+          <div className="space-y-2">
+            {getContacts().length > 0 ? getContacts().map((item, index) => (
+              <div key={index} className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={item.name || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const next = getContacts();
+                    next[index] = {
+                      ...next[index],
+                      name: value
+                    };
+                    setContacts(next);
+                  }}
+                  placeholder="姓名"
+                />
+                <Input
+                  value={item.phone || ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const onlyDigits = String(raw || '').replace(/\D/g, '').slice(0, 11);
+                    const next = getContacts();
+                    next[index] = {
+                      ...next[index],
+                      phone: onlyDigits
+                    };
+                    setContacts(next);
+                  }}
+                  inputMode="numeric"
+                  placeholder="手机号（11位）"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 px-3"
+                  onClick={() => {
+                    const next = getContacts().filter((_, i) => i !== index);
+                    setContacts(next);
+                  }}
+                >
+                  删除
+                </Button>
+              </div>
+            )) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const next = getContacts();
+                next.push({ name: '', phone: '' });
+                setContacts(next);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              添加联系号码
+            </Button>
+            {contactNumbersError ? (
+              <div className="text-xs text-red-600">{contactNumbersError}</div>
+            ) : null}
+          </div>
         </div>
       </div>
 
