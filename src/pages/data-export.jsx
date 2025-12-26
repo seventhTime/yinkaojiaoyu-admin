@@ -208,14 +208,15 @@ export default function DataExport(props) {
       } catch (e) {}
       try {
         if (q?.limit) {
-          q = q.limit(1);
+          q = q.limit(10);
         }
       } catch (e) {}
 
       const res = await q.get();
       const data = res?.data;
-      const first = Array.isArray(data) ? (data[0] || null) : (data || null);
-      const v = first?.createdAt;
+      const list = Array.isArray(data) ? data : (data ? [data] : []);
+      const firstWithCreatedAt = list.find((item) => item && item.createdAt !== undefined && item.createdAt !== null);
+      const v = firstWithCreatedAt?.createdAt;
       const t = typeof v === 'number' ? 'number' : (typeof v === 'string' ? 'string' : 'unknown');
       createdAtTypeCacheRef.current = {
         ...(createdAtTypeCacheRef.current || {}),
@@ -1072,7 +1073,7 @@ export default function DataExport(props) {
             <CardContent>
               <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
                 <div>
-                  共 {previewTotalKnown ? previewTotal : '未知'} 条
+                  {previewTotalKnown ? `共 ${previewTotal} 条` : `已加载 ${previewPageData.length} 条${previewHasMore ? '（可能还有更多）' : ''}`}
                 </div>
                 <div>
                   {previewLastUpdatedAt ? `更新于：${new Date(previewLastUpdatedAt).toLocaleString('zh-CN')}` : ''}
