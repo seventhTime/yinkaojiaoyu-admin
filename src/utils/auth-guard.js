@@ -127,9 +127,26 @@ function isAlreadyOnAdminPage() {
     if (typeof window === 'undefined') return false;
     const href = window.location?.href || '';
     const u = new URL(href);
+
+    const getPageIdFromPathLike = (pathLike) => {
+      const parts = String(pathLike || '')
+        .split('/')
+        .filter(Boolean);
+      const idx = parts.indexOf('admin');
+      if (idx < 0) return null;
+      return parts[idx + 1] || null;
+    };
+
     const pathname = u.pathname || '';
-    const hash = u.hash || '';
-    return pathname.includes('/admin') || hash.includes('admin');
+    const hash = (u.hash || '').replace(/^#/, '').replace(/^\//, '');
+
+    const pageIdFromPath = getPageIdFromPathLike(pathname);
+    if (pageIdFromPath) {
+      return pageIdFromPath === 'admin';
+    }
+
+    const pageIdFromHash = getPageIdFromPathLike(hash);
+    return pageIdFromHash === 'admin';
   } catch (e) {
     return false;
   }
@@ -203,30 +220,44 @@ export async function ensureAdminAccess($w) {
     if (typeof window !== 'undefined') {
       try {
         const u = new URL(window.location.href);
-        const marker = '/preview/';
-        const idx = u.pathname.indexOf(marker);
-        if (idx >= 0) {
-          u.pathname = u.pathname.slice(0, idx + marker.length) + 'admin';
+        const parts = (u.pathname || '').split('/').filter(Boolean);
+        const adminIdx = parts.indexOf('admin');
+        if (adminIdx >= 0) {
+          // 线上路由形态通常为 /admin/<pageId>/，这里强制回跳到 /admin/admin/
+          if (parts.length > adminIdx + 1) {
+            parts[adminIdx + 1] = 'admin';
+          } else {
+            parts.push('admin');
+          }
+          u.pathname = `/${parts.join('/')}`;
           u.search = '';
           u.hash = '';
           redirectUri = u.toString();
         } else {
-          const parts = (u.pathname || '').split('/').filter(Boolean);
-          if (parts[0] && parts[0].startsWith('app-')) {
-            u.pathname = `/${parts[0]}/admin`;
+          const marker = '/preview/';
+          const idx = u.pathname.indexOf(marker);
+          if (idx >= 0) {
+            u.pathname = u.pathname.slice(0, idx + marker.length) + 'admin';
             u.search = '';
             u.hash = '';
             redirectUri = u.toString();
           } else {
-            u.pathname = '/admin';
-            u.search = '';
-            u.hash = '';
-            redirectUri = u.toString();
+            if (parts[0] && parts[0].startsWith('app-')) {
+              u.pathname = `/${parts[0]}/admin/admin`;
+              u.search = '';
+              u.hash = '';
+              redirectUri = u.toString();
+            } else {
+              u.pathname = '/admin/admin';
+              u.search = '';
+              u.hash = '';
+              redirectUri = u.toString();
+            }
           }
         }
       } catch (e) {
         try {
-          redirectUri = `${window.location.origin}/admin`;
+          redirectUri = `${window.location.origin}/admin/admin`;
         } catch (e2) {
           redirectUri = window.location.href;
         }
