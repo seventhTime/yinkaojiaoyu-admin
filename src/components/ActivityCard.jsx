@@ -163,7 +163,7 @@ export function ActivityCard({
 
           {/* 联系电话 */}
           {contactText ? <div className="flex items-center text-sm text-gray-500">
-              <Phone className="w-4 h-4 mr-2 flex-shrink-0" />
+              <Phone className="w-4 h-4 mr-2" />
               <span className="line-clamp-1">
                 {contactText}
               </span>
@@ -172,12 +172,9 @@ export function ActivityCard({
 
         {/* 标签 */}
         {activity.tags && activity.tags.length > 0 && <div className="flex flex-wrap gap-1 mb-4">
-            {activity.tags.slice(0, 3).map((tag, index) => <Badge key={index} variant="secondary" className="text-xs">
+            {activity.tags.map((tag, index) => <Badge key={index} variant="secondary" className="text-xs">
                 {tag}
               </Badge>)}
-            {activity.tags.length > 3 && <Badge variant="secondary" className="text-xs">
-                +{activity.tags.length - 3}
-              </Badge>}
           </div>}
 
         {/* 操作按钮 */}
