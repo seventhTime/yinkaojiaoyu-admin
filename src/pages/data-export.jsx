@@ -10,7 +10,7 @@ export default function DataExport(props) {
   const {
     $w
   } = props;
-  const [exportType, setExportType] = useState('activities');
+  const [exportType, setExportType] = useState('users');
   const [dateRange, setDateRange] = useState('all');
   const [selectedFields, setSelectedFields] = useState([]);
   const [format, setFormat] = useState('csv');
